@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P内网聊天demo</title>
+  <script src="./xchatuser.js?v=5"></script>
+  <link rel="stylesheet" href="./style.css">
+  <style>
+    body .dragtip {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 999;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+
+    body.dragover .dragtip {
+      display: block;
+    }
+    body.dragover .dragtip h1 {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin: 0;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dragtip">
+    <h1>松开发送文件</h1>
+  </div>
+  <div class="left">
+    <div class="chat-wrapper">
+    </div>
+    <textarea id="messageInput" class="txt-msg" onkeydown="enterTxt(event)"></textarea>
+  </div>
+  <div class="right">
+    <ul id="users">
+    </ul>
+  </div>
+
+ 
+  <script src="./index.js?v=5"></script>
+
+  <script>
+
+    // 获取dom元素
+    let droptarget = document.body
+    // 文件流数组
+    let fileBlodArr = []
+    // 文件数组
+    let fileArr = []
+    // 拖拽上传事件
+    async function handleEvent(event) {
+        // 阻止事件的默认行为
+        event.preventDefault();
+        if (event.type === 'drop') {
+          droptarget.classList.remove('dragover')
+          for (let file of event.dataTransfer.files) {
+            console.log(file);
+            await sendFile(file)
+          }
+        } else if (event.type === 'dragleave') {
+          droptarget.classList.remove('dragover')
+        } else {
+          droptarget.classList.add('dragover')
+        }
+    }
+    // 拖拽事件绑定
+    droptarget.addEventListener("dragenter", handleEvent);
+    droptarget.addEventListener("dragover", handleEvent);
+    droptarget.addEventListener("drop", handleEvent);
+    droptarget.addEventListener("dragleave", handleEvent);
+  </script>
+</body>
+</html>
