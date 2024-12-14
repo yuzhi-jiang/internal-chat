@@ -121,24 +121,28 @@ class XChatUser {
         if (message.startsWith('##FILE_S##')) {
           // 文件传输前的头信息
           this.receivedChunks = [];
+          this.receivedSize = 0;
           this.fileInfo = JSON.parse(message.substring(10));
         } else if (message === '##FILE_E##') {
         } else {
           this.onmessage(message);
         }
-      } else {
+      } else if (this.receivedChunks) {
         if (message instanceof ArrayBuffer) {
           this.receivedChunks.push(message);
         } else if (message instanceof Uint8Array) {
           this.receivedChunks.push(message.buffer);
+        } else {
+          console.error('unknow message type', message);
         }
         this.receivedSize += message.byteLength;
-        // console.log(this.fileInfo.size, this.receivedSize);
+        console.log(this.fileInfo.size, this.receivedSize, `${Math.floor(this.receivedSize / this.fileInfo.size * 100)}%`);
         if (this.fileInfo.size === this.receivedSize) {
           // 文件传输结束的尾信息
           // console.log(this.receivedChunks);
           let blob = new Blob(this.receivedChunks);
           let url = URL.createObjectURL(blob);
+          console.log('finish recive');
           this.onReviceFile({  url, name: this.fileInfo.name });
           blob = null;
           this.receivedChunks = null;
@@ -152,7 +156,7 @@ class XChatUser {
     this.chatChannel.onclose = () => console.log('DataChannel is closed');
   }
   checkBufferedAmount() {
-    const maxBufferedAmount = 1024 * 256; // 设置最大缓冲区限制（例如 256KB）
+    const maxBufferedAmount = 1024 * 128; // 设置最大缓冲区限制（例如 256KB）
     if (this.chatChannel.bufferedAmount >= maxBufferedAmount) {
       // console.log('Data channel is full, waiting...');
       // 如果缓冲区满了，暂停发送
@@ -192,7 +196,6 @@ class XChatUser {
 
         // 如果还有下一个块，继续发送
         if (currentChunk < totalChunks) {
-          // sendNextChunk(); // 继续发送下一个块
           sendNextChunk();
         } else {
           console.log('File sent successfully.');
