@@ -20,7 +20,14 @@ function addChatItem(uid, message) {
   const chatBox = document.querySelector('.chat-wrapper');
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
-  const msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 判断是否url，兼容端口号的网址,http://127.0.0.1:8080/
+  if (/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g.test(msg)) {
+    msg = msg.replace(/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g, (url) => {
+      return `<a href="${url}" target="_blank">${url}</a>`;
+    });
+  }
+
   chatItem.innerHTML = `
     <div class="chat-item_user">${uid === me.id ? '（我）': ''}${uid} :</div>
     <div class="chat-item_content"><pre>${msg}</pre></div>

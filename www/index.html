@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>P2P内网聊天demo</title>
+  <title>局域网文字/文件P2P传输工具</title>
   <script src="./xchatuser.js?v=5"></script>
   <link rel="stylesheet" href="./style.css">
   <style>
@@ -59,19 +59,19 @@
     let fileArr = []
     // 拖拽上传事件
     async function handleEvent(event) {
-        // 阻止事件的默认行为
-        event.preventDefault();
-        if (event.type === 'drop') {
-          droptarget.classList.remove('dragover')
-          for (let file of event.dataTransfer.files) {
-            console.log(file);
-            await sendFile(file)
-          }
-        } else if (event.type === 'dragleave') {
-          droptarget.classList.remove('dragover')
-        } else {
-          droptarget.classList.add('dragover')
+      // 阻止事件的默认行为
+      event.preventDefault();
+      if (event.type === 'drop') {
+        droptarget.classList.remove('dragover')
+        for (let file of event.dataTransfer.files) {
+          console.log(file);
+          await sendFile(file)
         }
+      } else if (event.type === 'dragleave') {
+        droptarget.classList.remove('dragover')
+      } else {
+        droptarget.classList.add('dragover')
+      }
     }
     // 拖拽事件绑定
     droptarget.addEventListener("dragenter", handleEvent);

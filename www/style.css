@@ -2,8 +2,8 @@ body, html {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
-  background-color: black;
-  color: #5bf0f2;
+  background-color: rgba(0, 0, 0, 0.643);
+  color: #5beff2d8;
   display: flex;
   width: 100%;
   height: 100%;
@@ -21,10 +21,11 @@ pre {
 }
 .right {
   width: 150px;
-  color: #ffffff;
+  color: #ffffffbb;
   border-left: 1px solid rgb(151, 151, 151);
   padding: 10px;
   background-color: rgb(47, 47, 47);
+  overflow: auto;
 }
 .right ul {
   /* list-style: none; */
@@ -32,7 +33,7 @@ pre {
   margin: 0;
 }
 .right ul li {
-  user-select: all;
+  user-select: none;
   cursor: default;
   line-height: 24px;
 }
@@ -47,14 +48,15 @@ pre {
 }
 .chat-item {
   display: flex;
-  margin: 10px;
+  margin: 10px 10px 0 10px;
 }
 .chat-item .chat-item_user {
   margin-right: 10px;
   /* font-weight: bold; */
-  color: #ffffff; 
+  color: #ffffffbb; 
   width: 140px;
   text-align: right;
+  user-select: none;
 }
 .chat-item .chat-item_content {
   flex: 1;
@@ -68,18 +70,22 @@ pre {
   word-wrap: break-word;
   word-break: break-all;
 }
+.chat-item .chat-item_content pre a{
+  color: #5beff2d8;
+  text-decoration: none;
+}
 .chat-item a.file, .chat-item a.file:visited {
-  color: #5bf0f2;
+  color: #5beff2d8;
   text-decoration: none;
 }
 .txt-msg {
   outline: none;
   color: #000;
-  border-radius: 5px;
+  /* border-radius: 5px; */
   /* width: 100%; */
   height: 20%;
   min-height: 100px;
-  background-color: rgb(246, 246, 246);
+  background-color: rgb(236, 236, 236);
   border: none;
   resize: none;
   padding: 8px;
