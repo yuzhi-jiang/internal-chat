@@ -46,34 +46,44 @@
     </ul>
   </div>
 
- 
+  <div class="modal" id="userSelectModal">
+    <div class="modal-content">
+      <h3>选择接收用户</h3>
+      <div class="user-list" id="userSelectList">
+      </div>
+      <div class="progress-container" style="display: none;">
+        <div class="progress-text">正在发送...</div>
+        <div class="progress-bar">
+          <div class="progress-bar-inner"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="cancelSendFile()">取消</button>
+        <button onclick="confirmSendFile()">发送</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./index.js?v=6"></script>
 
   <script>
-
-    // 获取dom元素
-    let droptarget = document.body
-    // 文件流数组
-    let fileBlodArr = []
-    // 文件数组
-    let fileArr = []
-    // 拖拽上传事件
+    let droptarget = document.body;
+    let pendingFile = null;
+    
     async function handleEvent(event) {
-      // 阻止事件的默认行为
       event.preventDefault();
       if (event.type === 'drop') {
-        droptarget.classList.remove('dragover')
-        for (let file of event.dataTransfer.files) {
-          console.log(file);
-          await sendFile(file)
+        droptarget.classList.remove('dragover');
+        if (event.dataTransfer.files.length > 0) {
+          await sendFile(event.dataTransfer.files[0]);
         }
       } else if (event.type === 'dragleave') {
-        droptarget.classList.remove('dragover')
+        droptarget.classList.remove('dragover');
       } else {
-        droptarget.classList.add('dragover')
+        droptarget.classList.add('dragover');
       }
     }
-    // 拖拽事件绑定
+
     droptarget.addEventListener("dragenter", handleEvent);
     droptarget.addEventListener("dragover", handleEvent);
     droptarget.addEventListener("drop", handleEvent);

@@ -49,15 +49,52 @@ function sendMessage(msg) {
 }
 
 async function sendFile(file) {
-  const fileInfo = { name: file.name, size: file.size };
-  for (const u of users) {
-    if (u.isMe) {
-      continue;
+  pendingFile = file;
+  
+  const otherUsers = users.filter(u => !u.isMe);
+  
+  if (otherUsers.length === 1) {
+    const modal = document.getElementById('userSelectModal');
+    const progressContainer = modal.querySelector('.progress-container');
+    const progressBar = modal.querySelector('.progress-bar-inner');
+    const progressText = modal.querySelector('.progress-text');
+    
+    try {
+      const user = otherUsers[0];
+      const fileInfo = { name: file.name, size: file.size };
+      
+      // 显示进度条
+      modal.style.display = 'block';
+      document.getElementById('userSelectList').style.display = 'none';
+      modal.querySelector('.modal-footer').style.display = 'none';
+      progressContainer.style.display = 'block';
+      progressText.textContent = `正在发送给 ${user.id}...`;
+      
+      // 创建进度回调
+      const onProgress = (sent, total) => {
+        const progress = (sent / total) * 100;
+        progressBar.style.width = progress + '%';
+      };
+      
+      await user.sendFile(fileInfo, file, onProgress);
+      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${user.id})`);
+    } catch (error) {
+      console.error('发送文件失败:', error);
+      alert('发送文件失败，请重试');
+    } finally {
+      // 恢复界面状态
+      modal.style.display = 'none';
+      document.getElementById('userSelectList').style.display = 'block';
+      modal.querySelector('.modal-footer').style.display = 'block';
+      progressContainer.style.display = 'none';
+      progressBar.style.width = '0%';
     }
-    await u.sendFile(fileInfo, file);
+    
+    pendingFile = null;
+    return;
   }
-
-  addChatItem(me.id, `[文件] ${fileInfo.name}`);
+  
+  showUserSelectModal();
 }
 function registCandidate() {
   for (const ca of JSON.parse(candidate.value)) {
@@ -195,4 +232,102 @@ signalingServer.onmessage = ({ data: responseStr }) => {
     joinedConnection(data);
     return;
   }
+}
+
+function showUserSelectModal() {
+  const modal = document.getElementById('userSelectModal');
+  const userList = document.getElementById('userSelectList');
+  
+  // 清空之前的列表
+  userList.innerHTML = '';
+  
+  // 添加用户选项
+  users.forEach(user => {
+    if (!user.isMe) {
+      const item = document.createElement('div');
+      item.className = 'user-select-item';
+      const id = `user-${user.id}`;
+      
+      // 不使用 label 的 for 属性，改用包裹的方式
+      item.innerHTML = `
+        <label>
+          <input type="checkbox" value="${user.id}">
+          <span>${user.id}</span>
+        </label>
+      `;
+      
+      // 点击整行时切换复选框状态
+      item.addEventListener('click', (e) => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        // 如果点击的是复选框本身，不需要额外处理
+        if (e.target === checkbox) return;
+        
+        checkbox.checked = !checkbox.checked;
+        e.preventDefault(); // 阻止事件冒泡
+      });
+      
+      userList.appendChild(item);
+    }
+  });
+  
+  modal.style.display = 'block';
+}
+
+function cancelSendFile() {
+  const modal = document.getElementById('userSelectModal');
+  modal.style.display = 'none';
+  pendingFile = null;
+}
+
+async function confirmSendFile() {
+  const modal = document.getElementById('userSelectModal');
+  const sendButton = modal.querySelector('.modal-footer button:last-child');
+  const progressContainer = modal.querySelector('.progress-container');
+  const progressBar = modal.querySelector('.progress-bar-inner');
+  const progressText = modal.querySelector('.progress-text');
+  const userList = document.getElementById('userSelectList');
+  const selectedUsers = Array.from(document.querySelectorAll('#userSelectList input[type="checkbox"]:checked'))
+    .map(checkbox => users.find(u => u.id === checkbox.value));
+  
+  if (selectedUsers.length > 0 && pendingFile) {
+    // 禁用发送按钮并显示进度条
+    sendButton.disabled = true;
+    sendButton.textContent = '发送中...';
+    userList.style.display = 'none';
+    progressContainer.style.display = 'block';
+    
+    try {
+      const fileInfo = { name: pendingFile.name, size: pendingFile.size };
+      const totalUsers = selectedUsers.length;
+      
+      for (let i = 0; i < selectedUsers.length; i++) {
+        const user = selectedUsers[i];
+        progressText.textContent = `正在发送给 ${user.id}... (${i + 1}/${totalUsers})`;
+        
+        // 创建进度回调
+        const onProgress = (sent, total) => {
+          const userProgress = (sent / total) * 100;
+          const totalProgress = ((i * 100) + userProgress) / totalUsers;
+          progressBar.style.width = totalProgress + '%';
+        };
+        
+        await user.sendFile(fileInfo, pendingFile, onProgress);
+      }
+      
+      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${selectedUsers.map(u => u.id).join(', ')})`);
+    } catch (error) {
+      console.error('发送文件失败:', error);
+      alert('发送文件失败，请重试');
+    } finally {
+      // 恢复界面状态
+      sendButton.disabled = false;
+      sendButton.textContent = '发送';
+      userList.style.display = 'block';
+      progressContainer.style.display = 'none';
+      progressBar.style.width = '0%';
+    }
+  }
+  
+  modal.style.display = 'none';
+  pendingFile = null;
 }

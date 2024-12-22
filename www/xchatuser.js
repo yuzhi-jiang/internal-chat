@@ -166,39 +166,37 @@ class XChatUser {
       return true;
     }
   }
-  sendFileBytes(file) {
+  sendFileBytes(file, onProgress) {
     return new Promise((resolve, reject) => {
-      const chunkSize = 16 * 1024; // 每次发送 32KB
+      const chunkSize = 16 * 1024;
       const totalChunks = Math.ceil(file.size / chunkSize);
       let currentChunk = 0;
+      let totalSent = 0;
 
       const fileReader = new FileReader();
       
-      // 文件读取完成后的处理
       fileReader.onload = async () => {
-        // `fileReader.result` 包含当前块的数据
         try {
-
           while(!this.checkBufferedAmount()) {
-            await new Promise((resolve, reject) => {
-              setTimeout(() => {
-                resolve();
-              }, 100);
-            });
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-          this.chatChannel.send(fileReader.result); // 发送数据
+          this.chatChannel.send(fileReader.result);
+          
+          totalSent += fileReader.result.byteLength;
+          if (onProgress) {
+            onProgress(totalSent, file.size);
+          }
         } catch (e) {
           console.error(e);
-          reject();
+          reject(e);
+          return;
         }
-        console.log(`${currentChunk + 1}/${totalChunks}(${Math.floor((currentChunk + 1) / totalChunks * 100)}%)`);
+
         currentChunk++;
 
-        // 如果还有下一个块，继续发送
         if (currentChunk < totalChunks) {
           sendNextChunk();
         } else {
-          console.log('File sent successfully.');
           resolve();
         }
       };
@@ -208,21 +206,21 @@ class XChatUser {
         const end = Math.min(start + chunkSize, file.size);
         try {
           const chunk = file.slice(start, end);
-          fileReader.readAsArrayBuffer(chunk); // 读取当前块
+          fileReader.readAsArrayBuffer(chunk);
         } catch (e) {
           console.error(e);
-          reject();
+          reject(e);
         }
       }
 
-      sendNextChunk(); // 开始发送
+      sendNextChunk();
     });
   }
 
-  async sendFile(fileInfo, file) {
+  async sendFile(fileInfo, file, onProgress) {
     const fileInfoStr = '##FILE_S##' + JSON.stringify(fileInfo);
     await this.sendMessage(fileInfoStr);
-    await this.sendFileBytes(file);
+    await this.sendFileBytes(file, onProgress);
     await this.sendMessage('##FILE_E##');
   }
   

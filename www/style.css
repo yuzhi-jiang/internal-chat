@@ -94,3 +94,110 @@ pre {
   box-sizing: border-box;
   margin: 0 20px 20px 20px;
 }
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2f2f2f;
+  padding: 20px;
+  border-radius: 5px;
+  min-width: 300px;
+}
+
+.modal h3 {
+  margin: 0 0 15px 0;
+  color: #5beff2d8;
+}
+
+.user-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.user-select-item {
+  padding: 8px;
+  margin: 5px 0;
+  cursor: pointer;
+  color: #ffffffbb;
+}
+
+.user-select-item:hover {
+  background: rgba(91, 239, 242, 0.1);
+}
+
+.user-select-item label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.user-select-item input[type="checkbox"] {
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.user-select-item span {
+  flex: 1;
+}
+
+.modal-footer {
+  margin-top: 15px;
+  text-align: right;
+}
+
+.modal-footer button {
+  padding: 5px 15px;
+  margin-left: 10px;
+  background: #5beff2d8;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.modal-footer button:hover {
+  background: #4bd8e6d8;
+}
+
+.modal-footer button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.progress-container {
+  margin: 15px 0;
+}
+
+.progress-text {
+  color: #ffffffbb;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  width: 0%;
+  height: 100%;
+  background: #5beff2d8;
+  transition: width 0.3s ease;
+}
