@@ -1,6 +1,7 @@
+const wsUrl = 'wss://neiwang.1024bugs.com/ws';
+
 var users = [];
 var me = new XChatUser();
-const wsUrl = 'wss://neiwang.1024bugs.com/ws';
 
 function setRemote() {
   me.setRemoteSdp(remoteSDP.value);
