@@ -1,5 +1,6 @@
 var users = [];
 var me = new XChatUser();
+const wsUrl = 'wss://neiwang.1024bugs.com/ws';
 
 function setRemote() {
   me.setRemoteSdp(remoteSDP.value);
@@ -196,7 +197,7 @@ function enterTxt(event) {
 }
 
 // 连接信令服务器
-const signalingServer = new WebSocket('wss://neiwang.1024bugs.com/ws');
+const signalingServer = new WebSocket(wsUrl);
 signalingServer.onopen = () => {
   console.log('Connected to signaling server');
   setInterval(() => {
