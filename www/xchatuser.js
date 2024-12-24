@@ -23,7 +23,8 @@ class XChatUser {
   receivedChunks = [];
   fileInfo = null;
 
-  
+  // 添加传输控制变量
+  #isTransferCancelled = false;
 
   async createConnection() {
     this.rtcConn = new RTCPeerConnection({ iceServers: [] });
@@ -187,7 +188,10 @@ class XChatUser {
 
       fileReader.onload = async () => {
         try {
-          // 等待缓冲区可用
+          if (this.#isTransferCancelled) {
+            return;
+          }
+
           await this.checkBufferedAmount();
           
           if (this.chatChannel.readyState !== 'open') {
@@ -241,6 +245,7 @@ class XChatUser {
 
   async sendFile(fileInfo, file, onProgress) {
     try {
+      this.#isTransferCancelled = false; // 重置取消标志
       if (this.chatChannel.readyState !== 'open') {
         throw new Error('Connection not open');
       }
@@ -250,7 +255,9 @@ class XChatUser {
       
       await this.sendFileBytes(file, onProgress);
       
-      await this.sendMessage('##FILE_E##');
+      if (!this.#isTransferCancelled) { // 只有在未取消时才发送结束标记
+        await this.sendMessage('##FILE_E##');
+      }
     } catch (e) {
       console.error('Send file failed:', e);
       throw e;
@@ -266,6 +273,24 @@ class XChatUser {
       await this.chatChannel.send(message);
     } else {
       throw new Error('DataChannel is not open');
+    }
+  }
+
+  // 添加取消传输方法
+  cancelTransfer() {
+    this.#isTransferCancelled = true;
+    if (this.chatChannel) {
+      // 关闭并重新创建数据通道，确保传输被中断
+      this.chatChannel.close();
+      this.createDataChannel();
+    }
+  }
+
+  // 创建新的数据通道
+  createDataChannel() {
+    if (this.rtcConn) {
+      this.chatChannel = this.rtcConn.createDataChannel('chat', connOption);
+      this.dataChannel_initEvent();
     }
   }
 }

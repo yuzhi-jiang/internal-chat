@@ -3,6 +3,9 @@ const wsUrl = 'wss://neiwang.1024bugs.com/ws';
 var users = [];
 var me = new XChatUser();
 
+// 添加当前传输用户的引用
+let currentTransferUser = null;
+
 function setRemote() {
   me.setRemoteSdp(remoteSDP.value);
 }
@@ -63,12 +66,14 @@ async function sendFile(file) {
     
     try {
       const user = otherUsers[0];
+      currentTransferUser = user; // 保存当前传输用户的引用
       const fileInfo = { name: file.name, size: file.size };
       
       // 显示进度条
       modal.style.display = 'block';
       document.getElementById('userSelectList').style.display = 'none';
-      modal.querySelector('.modal-footer').style.display = 'none';
+      modal.querySelector('.modal-footer').style.display = 'block';
+      modal.querySelector('.modal-footer button:last-child').style.display = 'none';
       progressContainer.style.display = 'block';
       
       // 创建进度回调
@@ -90,10 +95,12 @@ async function sendFile(file) {
       console.error('发送文件失败:', error);
       alert('发送文件失败，请重试');
     } finally {
+      currentTransferUser = null; // 清除当前传输用户的引用
       // 恢复界面状态
       modal.style.display = 'none';
       document.getElementById('userSelectList').style.display = 'block';
       modal.querySelector('.modal-footer').style.display = 'block';
+      modal.querySelector('.modal-footer button:last-child').style.display = 'inline-block';
       progressContainer.style.display = 'none';
       progressBar.style.width = '0%';
     }
@@ -282,9 +289,13 @@ function showUserSelectModal() {
 }
 
 function cancelSendFile() {
+  if (currentTransferUser) {
+    currentTransferUser.cancelTransfer();
+  }
   const modal = document.getElementById('userSelectModal');
   modal.style.display = 'none';
   pendingFile = null;
+  currentTransferUser = null;
 }
 
 async function confirmSendFile() {
