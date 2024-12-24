@@ -1,4 +1,4 @@
-const wsUrl = 'wss://neiwang.1024bugs.com/ws';
+const wsUrl = 'ws://localhost:8081';
 
 var users = [];
 var me = new XChatUser();
@@ -70,14 +70,20 @@ async function sendFile(file) {
       document.getElementById('userSelectList').style.display = 'none';
       modal.querySelector('.modal-footer').style.display = 'none';
       progressContainer.style.display = 'block';
-      progressText.textContent = `正在发送给 ${user.id}...`;
       
       // 创建进度回调
       const onProgress = (sent, total) => {
         const progress = (sent / total) * 100;
         progressBar.style.width = progress + '%';
+        // 计算传输速度
+        const speed = sent / (Date.now() - startTime) * 1000; // 字节/秒
+        const speedText = speed > 1024 * 1024 
+          ? `${(speed / (1024 * 1024)).toFixed(2)} MB/s`
+          : `${(speed / 1024).toFixed(2)} KB/s`;
+        progressText.textContent = `正在发送给 ${user.id}... ${speedText}`;
       };
       
+      const startTime = Date.now();
       await user.sendFile(fileInfo, file, onProgress);
       addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${user.id})`);
     } catch (error) {
@@ -292,7 +298,6 @@ async function confirmSendFile() {
     .map(checkbox => users.find(u => u.id === checkbox.value));
   
   if (selectedUsers.length > 0 && pendingFile) {
-    // 禁用发送按钮并显示进度条
     sendButton.disabled = true;
     sendButton.textContent = '发送中...';
     userList.style.display = 'none';
@@ -301,16 +306,22 @@ async function confirmSendFile() {
     try {
       const fileInfo = { name: pendingFile.name, size: pendingFile.size };
       const totalUsers = selectedUsers.length;
+      const startTime = Date.now();
       
       for (let i = 0; i < selectedUsers.length; i++) {
         const user = selectedUsers[i];
         progressText.textContent = `正在发送给 ${user.id}... (${i + 1}/${totalUsers})`;
         
-        // 创建进度回调
         const onProgress = (sent, total) => {
           const userProgress = (sent / total) * 100;
           const totalProgress = ((i * 100) + userProgress) / totalUsers;
           progressBar.style.width = totalProgress + '%';
+          // 计算传输速度
+          const speed = sent / (Date.now() - startTime) * 1000; // 字节/秒
+          const speedText = speed > 1024 * 1024 
+            ? `${(speed / (1024 * 1024)).toFixed(2)} MB/s`
+            : `${(speed / 1024).toFixed(2)} KB/s`;
+          progressText.textContent = `正在发送给 ${user.id}... (${i + 1}/${totalUsers}) ${speedText}`;
         };
         
         await user.sendFile(fileInfo, pendingFile, onProgress);
@@ -321,7 +332,6 @@ async function confirmSendFile() {
       console.error('发送文件失败:', error);
       alert('发送文件失败，请重试');
     } finally {
-      // 恢复界面状态
       sendButton.disabled = false;
       sendButton.textContent = '发送';
       userList.style.display = 'block';
@@ -333,3 +343,42 @@ async function confirmSendFile() {
   modal.style.display = 'none';
   pendingFile = null;
 }
+
+
+let droptarget = document.body;
+    
+async function handleEvent(event) {
+  event.preventDefault();
+  if (event.type === 'drop') {
+    droptarget.classList.remove('dragover');
+    if (event.dataTransfer.files.length > 0) {
+      await sendFile(event.dataTransfer.files[0]);
+    }
+  } else if (event.type === 'dragleave') {
+    droptarget.classList.remove('dragover');
+  } else {
+    droptarget.classList.add('dragover');
+  }
+}
+
+droptarget.addEventListener("dragenter", handleEvent);
+droptarget.addEventListener("dragover", handleEvent);
+droptarget.addEventListener("drop", handleEvent);
+droptarget.addEventListener("dragleave", handleEvent);
+
+document.querySelector('.file-btn').addEventListener('click', async () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.onchange = async (e) => {
+    if (e.target.files.length > 0) {
+      await sendFile(e.target.files[0]);
+    }
+  };
+  input.click();
+});
+
+document.querySelector('.send-btn').addEventListener('click', () => {
+  if (messageInput.value.trim()) {  // 只有当消息不为空时才发送
+    sendMessage();
+  }
+});

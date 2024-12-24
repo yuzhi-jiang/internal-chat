@@ -9,6 +9,29 @@ body, html {
   height: 100%;
   font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
 }
+
+body .dragtip {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 999;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+body.dragover .dragtip {
+  display: block;
+}
+body.dragover .dragtip h1 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+}
 pre {
   margin: 0;
   font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
@@ -81,8 +104,6 @@ pre {
 .txt-msg {
   outline: none;
   color: #000;
-  /* border-radius: 5px; */
-  /* width: 100%; */
   height: 20%;
   min-height: 100px;
   background-color: rgb(236, 236, 236);
@@ -93,6 +114,13 @@ pre {
   line-height: 22px;
   box-sizing: border-box;
   margin: 0 20px 20px 20px;
+  border-top: none;
+  /* 禁用移动设备上的默认样式 */
+  border-radius: 0;
+  -webkit-border-radius: 0;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 .modal {
   display: none;
@@ -200,4 +228,44 @@ pre {
   height: 100%;
   background: #5beff2d8;
   transition: width 0.3s ease;
+}
+
+.toolbar {
+  background-color: rgb(236, 236, 236);
+  margin: 0 20px;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-left, .toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-btn {
+  background: none;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-btn:hover {
+  background-color: #ddd;
+}
+
+/* 发送按钮特殊样式 */
+.send-btn {
+  color: #666;
+}
+
+.send-btn:hover {
+  background-color: #ddd;
 }
