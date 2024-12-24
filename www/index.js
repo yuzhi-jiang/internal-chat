@@ -1,4 +1,4 @@
-const wsUrl = 'ws://localhost:8081';
+const wsUrl = 'wss://neiwang.1024bugs.com/ws';
 
 var users = [];
 var me = new XChatUser();
