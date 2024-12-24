@@ -33,12 +33,11 @@ console.log(`Signaling server running on ws://localhost:${PORT}`);
 
 server.on('connection', (socket, request) => {
   var ip = request.headers['x-forwarded-for'] ?? request.headers['x-real-ip'] ?? socket._socket.remoteAddress.split("::ffff:").join("");
-  console.log('ip:', ip);
   const currentId = service.registerUser(ip, socket);
   // 向客户端发送自己的id
   socketSend_UserId(socket, currentId);
   
-  console.log('A client connected.');
+  console.log(`${currentId}@${ip} connected`);
   
   service.getUserList(ip).forEach(user => {
     socketSend_RoomInfo(user.socket, ip);
@@ -93,7 +92,7 @@ server.on('connection', (socket, request) => {
     service.getUserList(ip).forEach(user => {
       socketSend_RoomInfo(user.socket, ip);
     });
-    console.log('A client disconnected.');
+    console.log(`${currentId}@${ip} disconnected`);
   });
 
   socket.on('error', () => {
@@ -101,7 +100,7 @@ server.on('connection', (socket, request) => {
     service.getUserList(ip).forEach(user => {
       socketSend_RoomInfo(user.socket, ip);
     });
-    console.log('A client disconnected.');
+    console.log(`${currentId}@${ip} disconnected`);
   });
 });
 
