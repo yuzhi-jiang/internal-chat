@@ -13,6 +13,8 @@ demo演示：https://neiwang.1024bugs.com
 比如新装的win系统需要从mac系统传一些需要🪜才能下载的软件或者搜到的一些东西
 
 ## 服务端部署：
+部署介绍：https://v.douyin.com/iUWewPmf/
+
 ### 源码方式
 1. 安装nodejs，node版本没有测试，我用的是 `16.20.2`
 2. 下载源码（服务端仅需要`server`目录）
