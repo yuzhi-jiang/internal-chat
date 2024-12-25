@@ -1,13 +1,12 @@
 body, html {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
-  background-color: rgba(0, 0, 0, 0.643);
-  color: #5beff2d8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #1a1a1a;
+  color: #e0e0e0;
   display: flex;
   width: 100%;
   height: 100%;
-  font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
 }
 
 body .dragtip {
@@ -41,14 +40,19 @@ pre {
   padding: 0;
   display: flex;
   flex-direction: column;
+  background-color: #242424;
+  border-radius: 8px 0 0 8px;
+  margin: 10px 0 10px 10px;
 }
 .right {
-  width: 150px;
-  color: #ffffffbb;
-  border-left: 1px solid rgb(151, 151, 151);
-  padding: 10px;
-  background-color: rgb(47, 47, 47);
+  width: 200px;
+  color: #e0e0e0;
+  border-left: 1px solid #363636;
+  padding: 15px;
+  background-color: #242424;
   overflow: auto;
+  margin: 10px 10px 10px 0;
+  border-radius: 0 8px 8px 0;
 }
 .right ul {
   /* list-style: none; */
@@ -59,6 +63,14 @@ pre {
   user-select: none;
   cursor: default;
   line-height: 24px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 4px;
+  background-color: #2a2a2a;
+  transition: background-color 0.2s;
+}
+.right ul li:hover {
+  background-color: #363636;
 }
 .chat-wrapper {
   flex: 1;
@@ -70,53 +82,70 @@ pre {
   scroll-behavior: smooth;
 }
 .chat-item {
-  display: flex;
-  margin: 10px 10px 0 10px;
+  display: block;
+  padding: 8px 15px;
+  margin: 5px 0;
+  transition: background-color 0.2s;
+}
+.chat-item:hover {
+  background-color: #2a2a2a;
 }
 .chat-item .chat-item_user {
-  margin-right: 10px;
-  /* font-weight: bold; */
-  color: #ffffffbb; 
-  width: 140px;
-  text-align: right;
+  display: block;
+  margin-bottom: 4px;
+  color: #64B5F6;
+  font-weight: 500;
+  font-size: 14px;
   user-select: none;
 }
 .chat-item .chat-item_content {
-  flex: 1;
-  /* 强制换行 */
-  word-wrap: break-word;
-  word-break: break-all;
+  display: block;
+  padding-left: 0;
+  color: #e0e0e0;
 }
-.chat-item .chat-item_content pre{
+.chat-item .chat-item_content pre {
   white-space: pre-wrap;
-  /* 自动换行 */
   word-wrap: break-word;
   word-break: break-all;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #e0e0e0;
 }
-.chat-item .chat-item_content pre a{
-  color: #5beff2d8;
+.chat-item .chat-item_content pre a {
+  color: #64B5F6;
   text-decoration: none;
+  transition: opacity 0.2s;
+}
+.chat-item .chat-item_content pre a:hover {
+  opacity: 0.8;
 }
 .chat-item a.file, .chat-item a.file:visited {
-  color: #5beff2d8;
+  display: inline-block;
+  padding: 8px 12px;
+  margin-top: 4px;
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  color: #64B5F6;
   text-decoration: none;
+  transition: background-color 0.2s;
+}
+.chat-item a.file:hover {
+  background-color: #363636;
 }
 .txt-msg {
   outline: none;
-  color: #000;
+  color: #e0e0e0;
   height: 20%;
   min-height: 100px;
-  background-color: rgb(236, 236, 236);
-  border: none;
-  resize: none;
-  padding: 8px;
-  font-size: 16px;
-  line-height: 22px;
-  box-sizing: border-box;
-  margin: 0 20px 20px 20px;
-  border-top: none;
-  /* 禁用移动设备上的默认样式 */
+  background-color: #2a2a2a;
+  border: 1px solid #363636;
   border-radius: 0;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 15px 15px 15px;
+  resize: none;
   -webkit-border-radius: 0;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -138,15 +167,20 @@ pre {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #2f2f2f;
+  background: #2a2a2a;
   padding: 20px;
   border-radius: 5px;
   min-width: 300px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 25px;
 }
 
 .modal h3 {
   margin: 0 0 15px 0;
-  color: #5beff2d8;
+  color: #64B5F6;
+  font-size: 18px;
+  margin-bottom: 20px;
 }
 
 .user-list {
@@ -159,10 +193,14 @@ pre {
   margin: 5px 0;
   cursor: pointer;
   color: #ffffffbb;
+  background-color: #363636;
+  border-radius: 4px;
+  margin: 8px 0;
+  transition: all 0.2s;
 }
 
 .user-select-item:hover {
-  background: rgba(91, 239, 242, 0.1);
+  background-color: #404040;
 }
 
 .user-select-item label {
@@ -187,20 +225,35 @@ pre {
 }
 
 .modal-footer button {
-  padding: 5px 15px;
-  margin-left: 10px;
-  background: #5beff2d8;
-  border: none;
-  border-radius: 3px;
+  padding: 8px 20px;
+  background: #64B5F6;
+  color: #fff;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border: 1px solid #42A5F5;
   cursor: pointer;
 }
 
+.modal-footer button:first-child {
+  background: transparent;
+  color: #64B5F6;
+  border: 1px solid #64B5F6;
+  margin-right: 10px;
+}
+
+.modal-footer button:first-child:hover {
+  background: rgba(100, 181, 246, 0.1);
+}
+
 .modal-footer button:hover {
-  background: #4bd8e6d8;
+  background: #42A5F5;
+  border-color: #1E88E5;
 }
 
 .modal-footer button:disabled {
   background: #cccccc;
+  border-color: #bbbbbb;
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -217,24 +270,27 @@ pre {
 
 .progress-bar {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  height: 8px;
+  background: #363636;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-bar-inner {
   width: 0%;
   height: 100%;
-  background: #5beff2d8;
+  background: #64B5F6;
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .toolbar {
-  background-color: rgb(236, 236, 236);
-  margin: 0 20px;
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
+  background-color: #2a2a2a;
+  margin: 0 15px;
+  padding: 10px;
+  border-radius: 4px 4px 0 0;
+  border: 1px solid #363636;
+  border-bottom: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -248,17 +304,19 @@ pre {
 .toolbar-btn {
   background: none;
   border: none;
-  padding: 5px;
+  padding: 8px;
   cursor: pointer;
-  color: #666;
+  color: #e0e0e0;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
 }
 
 .toolbar-btn:hover {
-  background-color: #ddd;
+  background-color: #363636;
+  color: #64B5F6;
 }
 
 /* 发送按钮特殊样式 */
@@ -268,4 +326,15 @@ pre {
 
 .send-btn:hover {
   background-color: #ddd;
+}
+
+/* 拖拽提示样式 */
+.dragtip {
+  background: rgba(26, 26, 26, 0.95);
+}
+
+.dragtip h1 {
+  color: #64B5F6;
+  font-size: 28px;
+  text-align: center;
 }
