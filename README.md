@@ -12,7 +12,7 @@ demo演示：https://neiwang.1024bugs.com
 ## 场景：
 比如新装的win系统需要从mac系统传一些需要🪜才能下载的软件或者搜到的一些东西
 
-## 服务端部署：
+## 服务端部署（仅部署服务端不行，一定看到最后的“网页部署”）：
 部署介绍：https://v.douyin.com/iUWewPmf/
 
 ### 源码方式
@@ -41,7 +41,7 @@ demo演示：https://neiwang.1024bugs.com
   }
 ```
 
-## 客户端部署：
+## 网页部署：
 1. 下载源码并修改`www/index.js`第一行代码`wsUrl`变量（如果服务端配置了反向代理，这里路径最后要加`/ws`，否则不用）
 2. 直接将`www`用nginx部署成一个静态网站即可，具体配置参考 `nginxvhost.conf`。如果你没有域名，将 `server_name` 写成 `_` 即可（属于nginx基础知识）
 3. 访问 `http://your.domain.com/` 即可
