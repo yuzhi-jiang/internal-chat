@@ -1,3 +1,11 @@
+const CONNECTION_STATES = {
+  DISCONNECTED: 'disconnected',
+  CONNECTING: 'connecting',
+  CONNECTED: 'connected',
+  FAILED: 'failed',
+  CLOSED: 'closed'
+};
+
 connOption = 
 { 
   ordered: true, 
@@ -17,13 +25,12 @@ class XChatUser {
   onicecandidate = () => { };
   onmessage = () => { };
   onReviceFile = () => { };
-
+  onConnectionStateChange = () => { };
 
   receivedSize = 0;
   receivedChunks = [];
   fileInfo = null;
 
-  // 添加传输控制变量
   #isTransferCancelled = false;
 
   async createConnection() {
@@ -43,11 +50,21 @@ class XChatUser {
       }
     };
 
+    this.rtcConn.onconnectionstatechange = () => {
+      console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
+      this.onConnectionStateChange(this.rtcConn.connectionState);
+      if (this.rtcConn.connectionState === 'failed') {
+        console.log('Connection failed, attempting to reconnect...');
+        this.reconnect();
+      }
+    };
+
     return this;
   }
 
   closeConnection() {
     if (this.rtcConn) {
+      this.rtcConn.onconnectionstatechange = null;
       this.rtcConn.close();
     }
     this.rtcConn = null;
@@ -55,6 +72,7 @@ class XChatUser {
     this.connAddressTarget = null;
     this.connAddressMe = null;
     this.onicecandidate = () => { };
+    this.onConnectionStateChange(CONNECTION_STATES.CLOSED);
   }
 
   async connectTarget(target) {
@@ -64,11 +82,11 @@ class XChatUser {
     if (this.isMe || !this.id) {
       return this;
     }
+
     if (this.rtcConn) {
-      this.rtcConn.close();
-      this.rtcConn = null;
-      return this;
+      this.closeConnection();
     }
+
     this.rtcConn = new RTCPeerConnection({ iceServers: [] });
 
     this.rtcConn.onicecandidate = event => {
@@ -88,6 +106,16 @@ class XChatUser {
     
     this.connAddressMe = await this.rtcConn.createAnswer();
     this.rtcConn.setLocalDescription(this.connAddressMe);
+
+    this.rtcConn.onconnectionstatechange = () => {
+      console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
+      this.onConnectionStateChange(this.rtcConn.connectionState);
+      if (this.rtcConn.connectionState === 'failed') {
+        console.log('Connection failed, attempting to reconnect...');
+        this.reconnect();
+      }
+    };
+
     return this;
   }
 
@@ -292,5 +320,30 @@ class XChatUser {
       this.chatChannel = this.rtcConn.createDataChannel('chat', connOption);
       this.dataChannel_initEvent();
     }
+  }
+
+  // 添加重连方法
+  async reconnect() {
+    console.log('Attempting to reconnect...');
+    if (this.connAddressTarget) {
+      try {
+        await this.connectTarget(this.connAddressTarget.sdp);
+      } catch (error) {
+        console.error('Reconnection failed:', error);
+      }
+    }
+  }
+
+  // 获取当前连接状态
+  getConnectionState() {
+    if (!this.rtcConn) {
+      return CONNECTION_STATES.DISCONNECTED;
+    }
+    return this.rtcConn.connectionState;
+  }
+
+  // 检查是否已连接
+  isConnected() {
+    return this.rtcConn && this.rtcConn.connectionState === 'connected';
   }
 }

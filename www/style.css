@@ -56,7 +56,7 @@ pre {
 }
 .right ul {
   /* list-style: none; */
-  padding: 0 0 0 20px;
+  padding: 0;
   margin: 0;
 }
 .right ul li {
@@ -68,6 +68,8 @@ pre {
   border-radius: 4px;
   background-color: #2a2a2a;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
 }
 .right ul li:hover {
   background-color: #363636;
@@ -337,4 +339,26 @@ pre {
   color: #64B5F6;
   font-size: 28px;
   text-align: center;
+}
+
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.connection-status svg {
+  width: 16px;
+  height: 16px;
+}
+
+.connection-status.connected {
+  color: #4CAF50;
+}
+
+.connection-status.disconnected {
+  color: #F44336;
 }
