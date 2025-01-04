@@ -22,7 +22,7 @@ demo演示：https://neiwang.1024bugs.com
 4. 运行 `npm run start [port]` ，例如 `npm run start 8081`
 
 ### 二进制方式
-* 下载对应平台的可执行文件，直接执行即可
+* 下载对应平台的可执行文件，直接执行即可（服务端）
 * 默认监听 `8081` 端口，可通过参数指定端口，例如 `./internal-chat-linux 8082`
 * 如果你用windows，可参考 https://v.douyin.com/CeiJahpLD/ 注册成服务
 
