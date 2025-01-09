@@ -362,3 +362,22 @@ pre {
 .connection-status.disconnected {
   color: #F44336;
 }
+
+.nickname-input-container {
+  margin: 20px 0;
+}
+
+.nickname-input-container input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #363636;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.nickname-input-container input:focus {
+  outline: none;
+  border-color: #64B5F6;
+}

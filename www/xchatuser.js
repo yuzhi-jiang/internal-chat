@@ -15,6 +15,7 @@ connOption =
 class XChatUser {
   id = null;
   isMe = false;
+  nickname = null;
 
   rtcConn = null;
   connAddressTarget = null;

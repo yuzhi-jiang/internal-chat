@@ -5,6 +5,7 @@ var me = new XChatUser();
 
 // 添加当前传输用户的引用
 let currentTransferUser = null;
+let currentNickname = '';
 
 function setRemote() {
   me.setRemoteSdp(remoteSDP.value);
@@ -13,8 +14,12 @@ function addLinkItem(uid, file) {
   const chatBox = document.querySelector('.chat-wrapper');
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
+  
+  const user = users.find(u => u.id === uid);
+  const displayName = user?.nickname || uid;
+  
   chatItem.innerHTML = `
-    <div class="chat-item_user">${uid === me.id ? '（我）': ''}${uid} :</div>
+    <div class="chat-item_user">${uid === me.id ? '（我）': ''}${displayName} :</div>
     <div class="chat-item_content"><a class="file" href="${file.url}" download="${file.name}">[文件] ${file.name}</a></div>
   `;
   chatBox.appendChild(chatItem);
@@ -33,13 +38,15 @@ function addChatItem(uid, message) {
     });
   }
 
+  const user = users.find(u => u.id === uid);
+  const displayName = user?.nickname || uid;
+
   chatItem.innerHTML = `
-    <div class="chat-item_user">${uid === me.id ? '（我）': ''}${uid} :</div>
+    <div class="chat-item_user">${uid === me.id ? '（我）': ''}${displayName} :</div>
     <div class="chat-item_content"><pre>${msg}</pre></div>
   `;
   chatBox.appendChild(chatItem);
   chatBox.scrollTop = chatBox.scrollHeight;
-
 }
 function sendMessage(msg) {
   const message = msg ?? messageInput.value;
@@ -141,16 +148,18 @@ function refreshUsers(data) {
     u => {
       let uOld = users.find(uOld => uOld.id === u.id)
       if (uOld) {
+        // 保持原有昵称
+        u.nickname = u.nickname || uOld.nickname;
         return uOld;
       }
       let xchatUser = new XChatUser();
       xchatUser.id = u.id;
       xchatUser.isMe = u.id === me.id;
+      xchatUser.nickname = u.nickname; // 设置昵称
       
-      // 添加连接状态变化监听
       xchatUser.onConnectionStateChange = (state) => {
         console.log(`User ${xchatUser.id} connection state: ${state}`);
-        refreshUsersHTML(); // 更新用户列表显示
+        refreshUsersHTML();
       };
       
       return xchatUser;
@@ -212,12 +221,14 @@ function refreshUsersHTML() {
       `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>` : 
       `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 1.43-.98 2.63-2.31 2.98l1.46 1.46C20.88 15.61 22 13.95 22 12c0-2.76-2.24-5-5-5zm-1 4h-2.19l2 2H16zM2 4.27l3.11 3.11C3.29 8.12 2 9.91 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74 3.27 3 2 4.27z"/></svg>`;
     
+    const displayName = u.nickname || u.id;
+    
     return `
       <li>
         <span class="connection-status ${statusClass}">
           ${statusIcon}
         </span>
-        ${u.id}${u.isMe?'（我）':''}
+        ${displayName}${u.isMe?'（我）':''}
       </li>
     `;
   }).join('');
@@ -237,6 +248,13 @@ function enterTxt(event) {
 const signalingServer = new WebSocket(wsUrl);
 signalingServer.onopen = () => {
   console.log('Connected to signaling server');
+  
+  // 读取保存的昵称
+  const match = document.cookie.match(/nickname=([^;]+)/);
+  if (match) {
+    currentNickname = decodeURIComponent(match[1]);
+  }
+  
   setInterval(() => {
     signalingServer.send(JSON.stringify({type: '9999'}));
   }, 1000 * 10);
@@ -248,6 +266,15 @@ signalingServer.onmessage = ({ data: responseStr }) => {
 
   if (type === '1001') {
     me.id = data.id;
+    // 如果有保存的昵称，发送给服务器
+    if (currentNickname) {
+      signalingServer.send(JSON.stringify({
+        uid: me.id,
+        targetId: me.id,
+        type: '9004',
+        data: { nickname: currentNickname }
+      }));
+    }
     return;
   }
   if (type === '1002') {
@@ -270,6 +297,14 @@ signalingServer.onmessage = ({ data: responseStr }) => {
     joinedConnection(data);
     return;
   }
+  if (type === '1007') {
+    const user = users.find(u => u.id === data.id);
+    if (user) {
+      user.nickname = data.nickname;
+      refreshUsersHTML();
+    }
+    return;
+  }
 }
 
 function showUserSelectModal() {
@@ -284,24 +319,21 @@ function showUserSelectModal() {
     if (!user.isMe) {
       const item = document.createElement('div');
       item.className = 'user-select-item';
-      const id = `user-${user.id}`;
+      const displayName = user.nickname || user.id;
       
-      // 不使用 label 的 for 属性，改用包裹的方式
       item.innerHTML = `
         <label>
           <input type="checkbox" value="${user.id}">
-          <span>${user.id}</span>
+          <span>${displayName}</span>
         </label>
       `;
       
       // 点击整行时切换复选框状态
       item.addEventListener('click', (e) => {
         const checkbox = item.querySelector('input[type="checkbox"]');
-        // 如果点击的是复选框本身，不需要额外处理
         if (e.target === checkbox) return;
-        
         checkbox.checked = !checkbox.checked;
-        e.preventDefault(); // 阻止事件冒泡
+        e.preventDefault();
       });
       
       userList.appendChild(item);
@@ -416,3 +448,45 @@ document.querySelector('.send-btn').addEventListener('click', () => {
     sendMessage();
   }
 });
+
+function showNicknameModal() {
+  const modal = document.getElementById('nicknameModal');
+  const input = document.getElementById('nicknameInput');
+  input.value = currentNickname;
+  modal.style.display = 'block';
+}
+
+function closeNicknameModal() {
+  const modal = document.getElementById('nicknameModal');
+  modal.style.display = 'none';
+}
+
+function saveNickname() {
+  const input = document.getElementById('nicknameInput');
+  const nickname = input.value.trim();
+  
+  if (nickname) {
+    currentNickname = nickname;
+    document.cookie = `nickname=${encodeURIComponent(nickname)}; path=/; max-age=31536000`; // 保存一年
+    
+    // 更新本地显示
+    const user = users.find(u => u.id === me.id);
+    if (user) {
+      user.nickname = nickname;
+      refreshUsersHTML();
+    }
+    
+    // 发送到服务器
+    signalingServer.send(JSON.stringify({
+      uid: me.id,
+      targetId: me.id,
+      type: '9004',
+      data: { nickname }
+    }));
+  }
+  
+  closeNicknameModal();
+}
+
+// ... 添加昵称按钮事件监听
+document.querySelector('.nickname-btn').addEventListener('click', showNicknameModal);

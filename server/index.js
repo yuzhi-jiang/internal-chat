@@ -22,11 +22,13 @@ const SEND_TYPE_JOINED_ROOM = '1003'; // 加入房间后的通知，比如对于
 const SEND_TYPE_NEW_CANDIDATE = '1004'; // offer
 const SEND_TYPE_NEW_CONNECTION = '1005'; // new connection
 const SEND_TYPE_CONNECTED = '1006'; // new connection
+const SEND_TYPE_NICKNAME_UPDATED = '1007'; // 昵称更新通知
 
 const RECEIVE_TYPE_NEW_CANDIDATE = '9001'; // offer
 const RECEIVE_TYPE_NEW_CONNECTION = '9002'; // new connection
 const RECEIVE_TYPE_CONNECTED = '9003'; // joined
 const RECEIVE_TYPE_KEEPALIVE = '9999'; // keep-alive
+const RECEIVE_TYPE_UPDATE_NICKNAME = '9004'; // 更新昵称请求
 
 
 console.log(`Signaling server running on ws://localhost:${PORT}`);
@@ -84,6 +86,16 @@ server.on('connection', (socket, request) => {
     if (type === RECEIVE_TYPE_KEEPALIVE) {
       return;
     }
+    if (type === RECEIVE_TYPE_UPDATE_NICKNAME) {
+      const success = service.updateNickname(ip, uid, data.nickname);
+      if (success) {
+        // 通知所有用户昵称更新
+        service.getUserList(ip).forEach(user => {
+          socketSend_NicknameUpdated(user.socket, { id: uid, nickname: data.nickname });
+        });
+      }
+      return;
+    }
     
   });
 
@@ -115,7 +127,10 @@ function socketSend_UserId(socket, id) {
   send(socket, SEND_TYPE_REG, { id });
 }
 function socketSend_RoomInfo(socket, ip, currentId) {
-  const result = service.getUserList(ip).map(user => ({ id: user.id }));
+  const result = service.getUserList(ip).map(user => ({ 
+    id: user.id,
+    nickname: user.nickname 
+  }));
   send(socket, SEND_TYPE_ROOM_INFO, result);
 }
 function socketSend_JoinedRoom(socket, id) {
@@ -132,4 +147,8 @@ function socketSend_ConnectInvite(socket, data) {
 
 function socketSend_Connected(socket, data) {
   send(socket, SEND_TYPE_CONNECTED, data);
+}
+
+function socketSend_NicknameUpdated(socket, data) {
+  send(socket, SEND_TYPE_NICKNAME_UPDATED, data);
 }
