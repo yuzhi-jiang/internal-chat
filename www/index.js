@@ -27,6 +27,19 @@ function addLinkItem(uid, file) {
 }
 
 function addChatItem(uid, message) {
+  // 如果是系统控制消息（以##开头），不显示在聊天记录中
+  try {
+    if (typeof message === 'string' && message.startsWith('##')) {
+      return;
+    }
+    const parsed = JSON.parse(message);
+    if (parsed.type && parsed.type.startsWith('##')) {
+      return;
+    }
+  } catch {
+    // 不是JSON消息，继续正常处理
+  }
+
   const chatBox = document.querySelector('.chat-wrapper');
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
@@ -73,7 +86,7 @@ async function sendFile(file) {
     
     try {
       const user = otherUsers[0];
-      currentTransferUser = user; // 保存当前传输用户的引用
+      currentTransferUser = user;
       const fileInfo = { name: file.name, size: file.size };
       
       // 显示进度条
@@ -92,17 +105,19 @@ async function sendFile(file) {
         const speedText = speed > 1024 * 1024 
           ? `${(speed / (1024 * 1024)).toFixed(2)} MB/s`
           : `${(speed / 1024).toFixed(2)} KB/s`;
-        progressText.textContent = `正在发送给 ${user.id}... ${speedText}`;
+        const displayName = user.nickname || user.id;
+        progressText.textContent = `正在发送给 ${displayName}... ${speedText}`;
       };
       
       const startTime = Date.now();
       await user.sendFile(fileInfo, file, onProgress);
-      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${user.id})`);
+      const displayName = user.nickname || user.id;
+      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${displayName})`);
     } catch (error) {
       console.error('发送文件失败:', error);
       alert('发送文件失败，请重试');
     } finally {
-      currentTransferUser = null; // 清除当前传输用户的引用
+      currentTransferUser = null;
       // 恢复界面状态
       modal.style.display = 'none';
       document.getElementById('userSelectList').style.display = 'block';
@@ -376,7 +391,8 @@ async function confirmSendFile() {
       
       for (let i = 0; i < selectedUsers.length; i++) {
         const user = selectedUsers[i];
-        progressText.textContent = `正在发送给 ${user.id}... (${i + 1}/${totalUsers})`;
+        const displayName = user.nickname || user.id;
+        progressText.textContent = `正在发送给 ${displayName}... (${i + 1}/${totalUsers})`;
         
         const onProgress = (sent, total) => {
           const userProgress = (sent / total) * 100;
@@ -387,13 +403,15 @@ async function confirmSendFile() {
           const speedText = speed > 1024 * 1024 
             ? `${(speed / (1024 * 1024)).toFixed(2)} MB/s`
             : `${(speed / 1024).toFixed(2)} KB/s`;
-          progressText.textContent = `正在发送给 ${user.id}... (${i + 1}/${totalUsers}) ${speedText}`;
+          progressText.textContent = `正在发送给 ${displayName}... (${i + 1}/${totalUsers}) ${speedText}`;
         };
         
         await user.sendFile(fileInfo, pendingFile, onProgress);
       }
       
-      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${selectedUsers.map(u => u.id).join(', ')})`);
+      // 使用昵称显示在聊天记录中
+      const displayNames = selectedUsers.map(u => u.nickname || u.id).join(', ');
+      addChatItem(me.id, `[文件] ${fileInfo.name} (发送给: ${displayNames})`);
     } catch (error) {
       console.error('发送文件失败:', error);
       alert('发送文件失败，请重试');
@@ -454,11 +472,26 @@ function showNicknameModal() {
   const input = document.getElementById('nicknameInput');
   input.value = currentNickname;
   modal.style.display = 'block';
+  
+  // 自动获取焦点
+  setTimeout(() => input.focus(), 0);
+  
+  // 添加回车事件监听
+  input.onkeydown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault(); // 阻止默认的回车行为
+      saveNickname();
+    }
+  };
 }
 
 function closeNicknameModal() {
   const modal = document.getElementById('nicknameModal');
+  const input = document.getElementById('nicknameInput');
   modal.style.display = 'none';
+  
+  // 清除回车事件监听
+  input.onkeydown = null;
 }
 
 function saveNickname() {

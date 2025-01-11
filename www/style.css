@@ -316,19 +316,11 @@ pre {
   transition: all 0.2s;
 }
 
-.toolbar-btn:hover {
+.send-btn:hover, .toolbar-btn:hover {
   background-color: #363636;
-  color: #64B5F6;
+  /* color: #64B5F6; */
 }
 
-/* 发送按钮特殊样式 */
-.send-btn {
-  color: #666;
-}
-
-.send-btn:hover {
-  background-color: #ddd;
-}
 
 /* 拖拽提示样式 */
 .dragtip {

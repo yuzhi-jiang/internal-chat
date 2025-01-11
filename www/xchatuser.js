@@ -33,6 +33,14 @@ class XChatUser {
   fileInfo = null;
 
   #isTransferCancelled = false;
+  #transferTimeout = null;
+  #expectedFileSize = 0;
+  #chunkSize = 8 * 1024; // 8KB chunks
+  #maxRetries = 3;
+  #missingChunks = new Set();
+  #totalChunks = 0;
+  #currentChunkInfo = null;
+  #pendingFile = null;
 
   async createConnection() {
     this.rtcConn = new RTCPeerConnection({ iceServers: [] });
@@ -144,41 +152,120 @@ class XChatUser {
   }
 
   dataChannel_initEvent() {
-    // 接收消息
-    this.chatChannel.onmessage = e => {
+    this.chatChannel.onmessage = async e => {
       const message = e.data;
-      if (typeof message === 'string') {
-        if (message.startsWith('##FILE_S##')) {
-          // 文件传输前的头信息
-          this.receivedChunks = [];
-          this.receivedSize = 0;
-          this.fileInfo = JSON.parse(message.substring(10));
-        } else if (message === '##FILE_E##') {
-        } else {
-          this.onmessage(message);
+      
+      try {
+        if (typeof message === 'string') {
+          if (message.startsWith('##FILE_S##')) {
+            // 重置状态
+            this.fileInfo = JSON.parse(message.substring(10));
+            this.#expectedFileSize = this.fileInfo.size;
+            this.#totalChunks = Math.ceil(this.#expectedFileSize / this.#chunkSize);
+            this.receivedChunks = new Array(this.#totalChunks).fill(null);
+            this.receivedSize = 0;
+            this.#missingChunks.clear();
+            this.#setTransferTimeout();
+            
+            // 发送确认收到文件信息
+            await this.sendMessage('##FILE_S_ACK##');
+            
+          } else if (message === '##FILE_E##') {
+            // 检查是否有缺失的块
+            const missingChunks = this.receivedChunks
+              .map((chunk, index) => chunk === null ? index : -1)
+              .filter(index => index !== -1);
+
+            if (missingChunks.length > 0) {
+              console.log(`Missing chunks: ${missingChunks.length}, requesting retry...`);
+              // 请求重传缺失的块
+              await this.sendMessage(JSON.stringify({
+                type: '##RETRY_REQUEST##',
+                chunks: missingChunks
+              }));
+              return;
+            }
+
+            // 验证文件完整性
+            if (this.receivedSize === this.#expectedFileSize) {
+              try {
+                const validChunks = this.receivedChunks.filter(chunk => chunk !== null);
+                let blob = new Blob(validChunks);
+                let url = URL.createObjectURL(blob);
+                this.onReviceFile({ url, name: this.fileInfo.name });
+                await this.sendMessage('##FILE_RECEIVED##');
+              } catch (error) {
+                console.error('Error creating blob:', error);
+              }
+            } else {
+              console.error(`File size mismatch: expected ${this.#expectedFileSize}, got ${this.receivedSize}`);
+              // 重新请求所有缺失的块
+              const allMissingChunks = this.receivedChunks
+                .map((chunk, index) => chunk === null ? index : -1)
+                .filter(index => index !== -1);
+              
+              if (allMissingChunks.length > 0) {
+                await this.sendMessage(JSON.stringify({
+                  type: '##RETRY_REQUEST##',
+                  chunks: allMissingChunks
+                }));
+                return;
+              }
+            }
+            this.#cleanupTransfer();
+            
+          } else {
+            try {
+              const parsed = JSON.parse(message);
+              if (parsed.type === '##CHUNK_INFO##') {
+                // 处理chunk信息
+                this.#currentChunkInfo = parsed.data;
+              } else if (parsed.type === '##RETRY_REQUEST##') {
+                // 处理重传请求
+                console.log(`Received retry request for ${parsed.chunks.length} chunks`);
+                for (const chunkIndex of parsed.chunks) {
+                  await this.sendChunk(this.#pendingFile, chunkIndex);
+                  // 添加小延迟避免网络拥塞
+                  await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                // 重新发送文件结束标记
+                await this.sendMessage('##FILE_E##');
+              } else {
+                this.onmessage(message);
+              }
+            } catch {
+              this.onmessage(message);
+            }
+          }
+        } else if (this.receivedChunks && this.#currentChunkInfo) {
+          // 重置超时计时器
+          this.#setTransferTimeout();
+          
+          const { index, size } = this.#currentChunkInfo;
+          
+          if (message instanceof ArrayBuffer || message instanceof Uint8Array) {
+            const buffer = message instanceof Uint8Array ? message.buffer : message;
+            if (buffer.byteLength === size) {
+              this.receivedChunks[index] = buffer;
+              this.receivedSize += buffer.byteLength;
+              this.#missingChunks.delete(index);
+              
+              // 每收到100个块发送一次进度确认
+              if (index % 100 === 0) {
+                await this.sendMessage(JSON.stringify({
+                  type: '##PROGRESS_ACK##',
+                  receivedSize: this.receivedSize,
+                  lastIndex: index
+                }));
+              }
+            } else {
+              console.error(`Chunk size mismatch at index ${index}`);
+              this.#missingChunks.add(index);
+            }
+          }
         }
-      } else if (this.receivedChunks) {
-        if (message instanceof ArrayBuffer) {
-          this.receivedChunks.push(message);
-        } else if (message instanceof Uint8Array) {
-          this.receivedChunks.push(message.buffer);
-        } else {
-          console.error('unknow message type', message);
-        }
-        this.receivedSize += message.byteLength;
-        console.log(this.fileInfo.size, this.receivedSize, `${Math.floor(this.receivedSize / this.fileInfo.size * 100)}%`);
-        if (this.fileInfo.size === this.receivedSize) {
-          // 文件传输结束的尾信息
-          // console.log(this.receivedChunks);
-          let blob = new Blob(this.receivedChunks);
-          let url = URL.createObjectURL(blob);
-          console.log('finish recive');
-          this.onReviceFile({  url, name: this.fileInfo.name });
-          blob = null;
-          this.receivedChunks = null;
-          this.receivedSize = 0;
-          this.fileInfo = null;
-        }
+      } catch (error) {
+        console.error('Error processing message:', error);
       }
     };
 
@@ -201,13 +288,13 @@ class XChatUser {
       }
     });
   }
-  sendFileBytes(file, onProgress) {
+  async sendFileBytes(file, onProgress) {
     return new Promise((resolve, reject) => {
-      const chunkSize = 8 * 1024; // 降低每个块的大小到 8KB
-      const totalChunks = Math.ceil(file.size / chunkSize);
+      this.#totalChunks = Math.ceil(file.size / this.#chunkSize);
       let currentChunk = 0;
       let totalSent = 0;
       let lastProgressUpdate = Date.now();
+      let retryCount = 0;
 
       const fileReader = new FileReader();
       
@@ -215,80 +302,133 @@ class XChatUser {
         reject(new Error('File reading failed'));
       };
 
-      fileReader.onload = async () => {
+      const sendChunk = async (chunkIndex) => {
         try {
-          if (this.#isTransferCancelled) {
-            return;
-          }
-
-          await this.checkBufferedAmount();
+          const start = chunkIndex * this.#chunkSize;
+          const end = Math.min(start + this.#chunkSize, file.size);
+          const chunk = file.slice(start, end);
           
-          if (this.chatChannel.readyState !== 'open') {
-            throw new Error('Connection closed');
-          }
+          // 读取chunk数据
+          const buffer = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(chunk);
+          });
 
-          this.chatChannel.send(fileReader.result);
-          totalSent += fileReader.result.byteLength;
+          // 创建包含元数据的消息
+          const chunkInfo = {
+            index: chunkIndex,
+            total: this.#totalChunks,
+            size: buffer.byteLength
+          };
+          
+          // 发送chunk信息
+          await this.sendMessage(JSON.stringify({
+            type: '##CHUNK_INFO##',
+            data: chunkInfo
+          }));
+          
+          // 发送实际数据
+          await this.checkBufferedAmount();
+          this.chatChannel.send(buffer);
+          
+          totalSent += buffer.byteLength;
 
-          // 限制进度更新频率，避免过于频繁的UI更新
+          // 更新进度
           const now = Date.now();
-          if (now - lastProgressUpdate > 100) { // 每 100ms 最多更新一次
+          if (now - lastProgressUpdate > 100) {
             if (onProgress) {
               onProgress(totalSent, file.size);
             }
             lastProgressUpdate = now;
           }
 
-          currentChunk++;
+        } catch (e) {
+          console.error(`Error sending chunk ${chunkIndex}:`, e);
+          throw e;
+        }
+      };
 
-          if (currentChunk < totalChunks) {
-            // 使用 setTimeout 来避免调用栈过深
-            setTimeout(() => sendNextChunk(), 0);
+      const processNextChunk = async () => {
+        try {
+          if (this.#isTransferCancelled) {
+            return;
+          }
+
+          if (currentChunk < this.#totalChunks) {
+            await sendChunk(currentChunk);
+            currentChunk++;
+            setTimeout(processNextChunk, 0);
           } else {
             if (onProgress) {
-              onProgress(totalSent, file.size); // 确保最后一次进度更新
+              onProgress(totalSent, file.size);
             }
             resolve();
           }
         } catch (e) {
-          console.error('Error sending chunk:', e);
-          reject(e);
+          if (retryCount < this.#maxRetries) {
+            retryCount++;
+            console.log(`Retrying chunk ${currentChunk}, attempt ${retryCount}`);
+            setTimeout(processNextChunk, 1000); // 1秒后重试
+          } else {
+            reject(e);
+          }
         }
       };
 
-      const sendNextChunk = () => {
-        try {
-          const start = currentChunk * chunkSize;
-          const end = Math.min(start + chunkSize, file.size);
-          const chunk = file.slice(start, end);
-          fileReader.readAsArrayBuffer(chunk);
-        } catch (e) {
-          console.error('Error preparing chunk:', e);
-          reject(e);
-        }
-      };
-
-      sendNextChunk();
+      processNextChunk();
     });
   }
 
   async sendFile(fileInfo, file, onProgress) {
     try {
-      this.#isTransferCancelled = false; // 重置取消标志
+      this.#isTransferCancelled = false;
+      this.#pendingFile = file;
+      
       if (this.chatChannel.readyState !== 'open') {
         throw new Error('Connection not open');
       }
 
-      const fileInfoStr = '##FILE_S##' + JSON.stringify(fileInfo);
-      await this.sendMessage(fileInfoStr);
+      // 发送文件信息并等待确认
+      await this.sendMessage('##FILE_S##' + JSON.stringify(fileInfo));
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('File start confirmation timeout')), 5000);
+        const handler = (e) => {
+          if (e.data === '##FILE_S_ACK##') {
+            clearTimeout(timeout);
+            this.chatChannel.removeEventListener('message', handler);
+            resolve();
+          }
+        };
+        this.chatChannel.addEventListener('message', handler);
+      });
       
+      // 发送文件内容
       await this.sendFileBytes(file, onProgress);
       
-      if (!this.#isTransferCancelled) { // 只有在未取消时才发送结束标记
+      if (!this.#isTransferCancelled) {
+        // 发送结束标记并等待确认
         await this.sendMessage('##FILE_E##');
+        
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('File transfer confirmation timeout')), 30000); // 增加超时时间到30秒
+          
+          const confirmHandler = (e) => {
+            if (e.data === '##FILE_RECEIVED##') {
+              clearTimeout(timeout);
+              this.chatChannel.removeEventListener('message', confirmHandler);
+              this.#pendingFile = null;
+              resolve();
+            }
+          };
+          
+          this.chatChannel.addEventListener('message', confirmHandler);
+        });
       }
     } catch (e) {
       console.error('Send file failed:', e);
+      this.#pendingFile = null;
       throw e;
     }
   }
@@ -346,5 +486,63 @@ class XChatUser {
   // 检查是否已连接
   isConnected() {
     return this.rtcConn && this.rtcConn.connectionState === 'connected';
+  }
+
+  #setTransferTimeout() {
+    this.#clearTransferTimeout();
+    this.#transferTimeout = setTimeout(() => {
+      console.error('File transfer timeout');
+      this.#cleanupTransfer();
+    }, 30000); // 30秒超时
+  }
+  
+  #clearTransferTimeout() {
+    if (this.#transferTimeout) {
+      clearTimeout(this.#transferTimeout);
+      this.#transferTimeout = null;
+    }
+  }
+  
+  #cleanupTransfer() {
+    this.#clearTransferTimeout();
+    this.receivedChunks = null;
+    this.receivedSize = 0;
+    this.fileInfo = null;
+    this.#expectedFileSize = 0;
+  }
+
+  async sendChunk(file, chunkIndex) {
+    if (!file) {
+      throw new Error('No file to send chunk from');
+    }
+    
+    const start = chunkIndex * this.#chunkSize;
+    const end = Math.min(start + this.#chunkSize, file.size);
+    const chunk = file.slice(start, end);
+    
+    // 读取chunk数据
+    const buffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(chunk);
+    });
+
+    // 创建包含元数据的消息
+    const chunkInfo = {
+      index: chunkIndex,
+      total: this.#totalChunks,
+      size: buffer.byteLength
+    };
+    
+    // 发送chunk信息
+    await this.sendMessage(JSON.stringify({
+      type: '##CHUNK_INFO##',
+      data: chunkInfo
+    }));
+    
+    // 发送实际数据
+    await this.checkBufferedAmount();
+    this.chatChannel.send(buffer);
   }
 }
