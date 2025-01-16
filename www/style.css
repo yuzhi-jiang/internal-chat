@@ -101,7 +101,9 @@ pre {
   user-select: none;
 }
 .chat-item .chat-item_content {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   padding-left: 0;
   color: #e0e0e0;
 }
@@ -303,7 +305,7 @@ pre {
   align-items: center;
 }
 
-.toolbar-btn {
+.toolbar-btn,.copy-btn {
   background: none;
   border: none;
   padding: 8px;
@@ -316,7 +318,7 @@ pre {
   transition: all 0.2s;
 }
 
-.send-btn:hover, .toolbar-btn:hover {
+.send-btn:hover, .toolbar-btn:hover, .copy-btn:hover {
   background-color: #363636;
   /* color: #64B5F6; */
 }
