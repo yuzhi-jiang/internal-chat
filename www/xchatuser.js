@@ -12,6 +12,24 @@ connOption =
   maxRetransmits: 10, // 最大重传次数
   bufferedAmountLowThreshold: 1024 * 16 // 设置缓冲区低阈值为 16KB
 }
+
+const configuration = {
+  iceServers: [
+    {
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302',
+        'stun:stun4.l.google.com:19302',
+        'stun:stun.fagedongxi.com:3478',    // 备用：发个东西自己的STUN服务器
+      ]
+    }
+  ],
+  iceTransportPolicy: 'all',        // 允许所有类型的候选者
+  iceCandidatePoolSize: 10           // 预生成的候选者数量
+};
+
 class XChatUser {
   id = null;
   isMe = false;
@@ -42,8 +60,15 @@ class XChatUser {
   #currentChunkInfo = null;
   #pendingFile = null;
 
+
   async createConnection() {
-    this.rtcConn = new RTCPeerConnection({ iceServers: [] });
+    const peerConnectionConstraints = {
+      optional: [
+        { googIPv6: false }
+      ]
+    };
+    
+    this.rtcConn = new RTCPeerConnection(configuration, peerConnectionConstraints);
     this.chatChannel = this.rtcConn.createDataChannel('chat',  connOption);
     this.dataChannel_initEvent()
     // this.dataChannel.onopen = () => console.log('DataChannel is open');
@@ -52,19 +77,83 @@ class XChatUser {
     await this.rtcConn.setLocalDescription(offer)
     this.connAddressMe = this.rtcConn.localDescription;
 
-    this.rtcConn.onicecandidate = event => {
-      if (event.candidate) {
-        this.candidateArr.push(event.candidate);
-        this.onicecandidate(event.candidate, this.candidateArr);
+    this.rtcConn.onicecandidateerror = (event) => {
+      console.error('ICE Candidate Error:', {
+        errorCode: event.errorCode,
+        errorText: event.errorText,
+        hostCandidate: event.hostCandidate,
+        url: event.url
+      });
+    };
+
+    this.rtcConn.onicegatheringstatechange = () => {
+      const state = this.rtcConn.iceGatheringState;
+      console.log(`ICE gathering state changed: ${state}`);
+      
+      switch(state) {
+        case 'new':
+          console.log('Starting to gather candidates...');
+          break;
+        case 'gathering':
+          console.log('Gathering ICE candidates...');
+          break;
+        case 'complete':
+          console.log('ICE gathering completed');
+          console.log('Final candidates:', this.candidateArr);
+          break;
       }
+    };
+
+    this.rtcConn.oniceconnectionstatechange = () => {
+      console.log(`ICE connection state: ${this.rtcConn.iceConnectionState}`);
     };
 
     this.rtcConn.onconnectionstatechange = () => {
       console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
+      // 添加更详细的连接状态日志
+      switch(this.rtcConn.connectionState) {
+        case 'new':
+          console.log('Connection created');
+          break;
+        case 'connecting':
+          console.log('Connecting...');
+          break;
+        case 'connected':
+          console.log('Successfully connected');
+          break;
+        case 'disconnected':
+          console.log('Disconnected - attempting to reconnect');
+          break;
+        case 'failed':
+          console.log('Connection failed - checking ICE candidates');
+          console.log('ICE Gathering State:', this.rtcConn.iceGatheringState);
+          console.log('ICE Connection State:', this.rtcConn.iceConnectionState);
+          this.reconnect();
+          break;
+        case 'closed':
+          console.log('Connection closed');
+          break;
+      }
       this.onConnectionStateChange(this.rtcConn.connectionState);
-      if (this.rtcConn.connectionState === 'failed') {
-        console.log('Connection failed, attempting to reconnect...');
-        this.reconnect();
+    };
+
+    this.rtcConn.onicecandidate = event => {
+      if (event.candidate) {
+        console.log('ICE Candidate Details:', {
+          candidate: event.candidate.candidate,
+          type: event.candidate.type,
+          protocol: event.candidate.protocol,
+          address: event.candidate.address,
+          port: event.candidate.port,
+          priority: event.candidate.priority,
+          foundation: event.candidate.foundation,
+          relatedAddress: event.candidate.relatedAddress,
+          relatedPort: event.candidate.relatedPort
+        });
+        this.candidateArr.push(event.candidate);
+        this.onicecandidate(event.candidate, this.candidateArr);
+      } else {
+        console.log('ICE gathering completed');
       }
     };
 
@@ -96,7 +185,7 @@ class XChatUser {
       this.closeConnection();
     }
 
-    this.rtcConn = new RTCPeerConnection({ iceServers: [] });
+    this.rtcConn = new RTCPeerConnection(configuration);
 
     this.rtcConn.onicecandidate = event => {
       if (event.candidate) {
