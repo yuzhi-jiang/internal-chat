@@ -10,6 +10,37 @@ let currentNickname = '';
 function setRemote() {
   me.setRemoteSdp(remoteSDP.value);
 }
+
+async function copy(e, msg) {
+  const currentTarget = e.currentTarget
+  function copySuccess() {
+    currentTarget.innerHTML = `
+      <svg viewBox="0 0 1024 1024" width="20" height="21"><path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5L207 474a32 32 0 0 0-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z" fill="currentColor"></path></svg>
+    `
+    const timer = setTimeout(() => {
+      currentTarget.innerHTML = `
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"></path></svg>
+      `
+      clearTimeout(timer)
+    }, 1000);
+  }
+  function fallbackCopy() {
+    const textarea = document.createElement('textarea');
+    textarea.value = msg;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    copySuccess()
+  }
+  try {
+    await navigator.clipboard.writeText(msg);
+    copySuccess()
+  } catch (error) {
+    fallbackCopy()
+  }
+}
+
 function addLinkItem(uid, file) {
   const chatBox = document.querySelector('.chat-wrapper');
   const chatItem = document.createElement('div');
@@ -44,6 +75,7 @@ function addChatItem(uid, message) {
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
   let msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const copyText = msg
   // 判断是否url，兼容端口号的网址,http://127.0.0.1:8080/
   if (/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g.test(msg)) {
     msg = msg.replace(/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g, (url) => {
@@ -54,10 +86,20 @@ function addChatItem(uid, message) {
   const user = users.find(u => u.id === uid);
   const displayName = user?.nickname || uid;
 
+  const copyButton = document.createElement('button')
+  copyButton.className = 'copy-btn'
+  copyButton.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"></path></svg>'
+  copyButton.onclick = function () {
+    copy(event,copyText)
+  }
+
   chatItem.innerHTML = `
     <div class="chat-item_user">${uid === me.id ? '（我）': ''}${displayName} :</div>
-    <div class="chat-item_content"><pre>${msg}</pre></div>
+    <div class="chat-item_content">
+      <pre>${msg}</pre>
+    </div>
   `;
+  chatItem.querySelector('.chat-item_content').appendChild(copyButton)
   chatBox.appendChild(chatItem);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
