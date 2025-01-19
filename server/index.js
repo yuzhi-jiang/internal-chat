@@ -34,15 +34,17 @@ const RECEIVE_TYPE_UPDATE_NICKNAME = '9004'; // 更新昵称请求
 console.log(`Signaling server running on ws://localhost:${PORT}`);
 
 server.on('connection', (socket, request) => {
-  var ip = request.headers['x-forwarded-for'] ?? request.headers['x-real-ip'] ?? socket._socket.remoteAddress.split("::ffff:").join("");
-  const currentId = service.registerUser(ip, socket);
+  const ip = request.headers['x-forwarded-for'] ?? request.headers['x-real-ip'] ?? socket._socket.remoteAddress.split("::ffff:").join("");
+
+  const roomId = null;
+  const currentId = service.registerUser(ip, roomId, socket);
   // 向客户端发送自己的id
   socketSend_UserId(socket, currentId);
   
-  console.log(`${currentId}@${ip} connected`);
+  console.log(`${currentId}@${ip}${roomId ? '/' + roomId : ''} connected`);
   
-  service.getUserList(ip).forEach(user => {
-    socketSend_RoomInfo(user.socket, ip);
+  service.getUserList(ip, roomId).forEach(user => {
+    socketSend_RoomInfo(user.socket, ip, roomId);
   });
 
   socketSend_JoinedRoom(socket, currentId);
@@ -65,8 +67,8 @@ server.on('connection', (socket, request) => {
     if (!type || !uid || !targetId) {
       return null;
     }
-    const me = service.getUser(ip, uid)
-    const target = service.getUser(ip, targetId)
+    const me = service.getUser(ip, roomId, uid)
+    const target = service.getUser(ip, roomId, targetId)
     if (!me || !target) {
       return;
     }
@@ -87,10 +89,10 @@ server.on('connection', (socket, request) => {
       return;
     }
     if (type === RECEIVE_TYPE_UPDATE_NICKNAME) {
-      const success = service.updateNickname(ip, uid, data.nickname);
+      const success = service.updateNickname(ip, roomId, uid, data.nickname);
       if (success) {
         // 通知所有用户昵称更新
-        service.getUserList(ip).forEach(user => {
+        service.getUserList(ip, roomId).forEach(user => {
           socketSend_NicknameUpdated(user.socket, { id: uid, nickname: data.nickname });
         });
       }
@@ -100,19 +102,19 @@ server.on('connection', (socket, request) => {
   });
 
   socket.on('close', () => {
-    service.unregisterUser(ip, currentId);
-    service.getUserList(ip).forEach(user => {
-      socketSend_RoomInfo(user.socket, ip);
+    service.unregisterUser(ip, roomId, currentId);
+    service.getUserList(ip, roomId).forEach(user => {
+      socketSend_RoomInfo(user.socket, ip, roomId);
     });
-    console.log(`${currentId}@${ip} disconnected`);
+    console.log(`${currentId}@${ip}${roomId ? '/' + roomId : ''} disconnected`);
   });
 
   socket.on('error', () => {
-    service.unregisterUser(ip, currentId);
-    service.getUserList(ip).forEach(user => {
-      socketSend_RoomInfo(user.socket, ip);
+    service.unregisterUser(ip, roomId, currentId);
+    service.getUserList(ip, roomId).forEach(user => {
+      socketSend_RoomInfo(user.socket, ip, roomId);
     });
-    console.log(`${currentId}@${ip} disconnected`);
+    console.log(`${currentId}@${ip}${roomId ? '/' + roomId : ''} disconnected`);
   });
 });
 
@@ -126,8 +128,8 @@ function send(socket, type, data) {
 function socketSend_UserId(socket, id) {
   send(socket, SEND_TYPE_REG, { id });
 }
-function socketSend_RoomInfo(socket, ip, currentId) {
-  const result = service.getUserList(ip).map(user => ({ 
+function socketSend_RoomInfo(socket, ip, roomId) {
+  const result = service.getUserList(ip, roomId).map(user => ({ 
     id: user.id,
     nickname: user.nickname 
   }));
