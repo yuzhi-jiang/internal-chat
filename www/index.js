@@ -565,3 +565,21 @@ function saveNickname() {
 
 // ... 添加昵称按钮事件监听
 document.querySelector('.nickname-btn').addEventListener('click', showNicknameModal);
+
+function toggleUsersList() {
+  document.body.classList.toggle('show-users');
+}
+
+// Add event listener for toggle button and overlay
+document.addEventListener('DOMContentLoaded', function() {
+  const toggleBtn = document.querySelector('.toggle-users-btn');
+  const overlay = document.querySelector('.mobile-overlay');
+  
+  toggleBtn.addEventListener('click', toggleUsersList);
+  overlay.addEventListener('click', toggleUsersList);
+
+  // Hide users list by default on mobile
+  if (window.innerWidth <= 768) {
+    document.body.classList.remove('show-users');
+  }
+});
