@@ -32,7 +32,7 @@ demo演示：https://fagedongxi.com
 > 如果采用下方的配置反向代理，注意在客户端配置`wsUrl`变量的时候，需要加 `/ws`，否则不用
 ```
   location /ws/ {
-    proxy_pass http://localhost:8081;
+    proxy_pass http://localhost:8081/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header Upgrade $http_upgrade;
