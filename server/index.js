@@ -36,7 +36,11 @@ console.log(`Signaling server running on ws://localhost:${PORT}`);
 server.on('connection', (socket, request) => {
   const ip = request.headers['x-forwarded-for'] ?? request.headers['x-real-ip'] ?? socket._socket.remoteAddress.split("::ffff:").join("");
 
-  const roomId = null;
+  const urlWithPath = request.url.split('/')
+  let roomId = null;
+  if (urlWithPath.length > 1 && urlWithPath[1].length > 0 && urlWithPath[1].length <= 32) {
+    roomId = urlWithPath[1];
+  }
   const currentId = service.registerUser(ip, roomId, socket);
   // 向客户端发送自己的id
   socketSend_UserId(socket, currentId);

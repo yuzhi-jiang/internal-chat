@@ -21,8 +21,7 @@ const configuration = {
         'stun:stun1.l.google.com:19302',
         'stun:stun2.l.google.com:19302',
         'stun:stun3.l.google.com:19302',
-        'stun:stun4.l.google.com:19302',
-        'stun:stun.fagedongxi.com:3478',    // 备用：发个东西自己的STUN服务器
+        'stun:stun4.l.google.com:19302'
       ]
     }
   ],
@@ -78,7 +77,7 @@ class XChatUser {
     this.connAddressMe = this.rtcConn.localDescription;
 
     this.rtcConn.onicecandidateerror = (event) => {
-      console.error('ICE Candidate Error:', {
+      console.error('ICE Candidate Error:', event, {
         errorCode: event.errorCode,
         errorText: event.errorText,
         hostCandidate: event.hostCandidate,
@@ -189,6 +188,9 @@ class XChatUser {
 
     this.rtcConn.onicecandidate = event => {
       if (event.candidate) {
+        if (candidate.includes("typ host") && candidate.includes(":")) {
+          console.log("IPv6 candidate ignored:", candidate);
+        }
         this.candidateArr.push(event.candidate);
         this.onicecandidate(event.candidate, this.candidateArr);
       }

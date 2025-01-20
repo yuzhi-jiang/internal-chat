@@ -1,4 +1,4 @@
-const wsUrl = 'wss://fagedongxi.com/ws';
+const wsUrl = 'ws://127.0.0.1:8081';
 
 var users = [];
 var me = new XChatUser();
@@ -301,8 +301,10 @@ function enterTxt(event) {
   }
 }
 
+const roomId = window.location.pathname.split('/')[1];
+
 // 连接信令服务器
-const signalingServer = new WebSocket(wsUrl);
+const signalingServer = new WebSocket(wsUrl.replace(/\/$/g, '') + '/' + roomId);
 signalingServer.onopen = () => {
   console.log('Connected to signaling server');
   
