@@ -188,9 +188,6 @@ class XChatUser {
 
     this.rtcConn.onicecandidate = event => {
       if (event.candidate) {
-        if (candidate.includes("typ host") && candidate.includes(":")) {
-          console.log("IPv6 candidate ignored:", candidate);
-        }
         this.candidateArr.push(event.candidate);
         this.onicecandidate(event.candidate, this.candidateArr);
       }
