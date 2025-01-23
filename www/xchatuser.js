@@ -31,6 +31,7 @@ const configuration = {
 
 class XChatUser {
   id = null;
+  roomId = null;
   isMe = false;
   nickname = null;
 

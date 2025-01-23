@@ -47,3 +47,5 @@ demo演示：https://fagedongxi.com
 2. 直接将`www`用nginx部署成一个静态网站即可，具体配置参考 `nginxvhost.conf`。如果你没有域名，将 `server_name` 写成 `_` 即可（属于nginx基础知识）
 3. 访问 `http://your.domain.com/` 即可
 
+## 免责声明：
+本项目仅用于学习交流，请勿用于非法用途，否则后果自负。

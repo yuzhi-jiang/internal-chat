@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const service = require('./data');
+const path = require('path');
 
 const originalLog = console.log;
 console.log = function() {
@@ -30,6 +31,21 @@ const RECEIVE_TYPE_CONNECTED = '9003'; // joined
 const RECEIVE_TYPE_KEEPALIVE = '9999'; // keep-alive
 const RECEIVE_TYPE_UPDATE_NICKNAME = '9004'; // 更新昵称请求
 
+// 从room_pwd.json中获取房间密码
+let roomPwd = { };
+try {
+  // 获取可执行程序所在目录
+  const exePath = process.pkg ? path.dirname(process.execPath) : __dirname;
+  roomPwdConfig = require(path.join(exePath, 'room_pwd.json'));
+  let roomIds = [];
+  roomPwdConfig.forEach(item => {
+    roomIds.push(item.roomId);
+    roomPwd[item.roomId] = item.pwd;
+  });
+  console.log(`加载房间数据: ${roomIds.join(',')}`);
+} catch (e) {
+  console.error('Failed to load room_pwd.json');
+}
 
 console.log(`Signaling server running on ws://localhost:${PORT}`);
 
@@ -38,15 +54,27 @@ server.on('connection', (socket, request) => {
 
   const urlWithPath = request.url.split('/')
   let roomId = null;
+  let pwd = null;
   if (urlWithPath.length > 1 && urlWithPath[1].length > 0 && urlWithPath[1].length <= 32) {
-    roomId = urlWithPath[1];
+    roomId = urlWithPath[1].trim();
+  }
+  if (urlWithPath.length > 2 && urlWithPath[2].length > 0 && urlWithPath[2].length <= 32) {
+    pwd = urlWithPath[2].trim();
   }
   if (roomId === 'ws') {  // 兼容旧版本
     roomId = null;
   }
+  if (roomId === '') {
+    roomId = null;
+  }
+  if (roomId) {
+    if (!pwd || !roomPwd[roomId] || roomPwd[roomId].toLowerCase() !== pwd.toLowerCase()) {
+      roomId = null;
+    }
+  }
   const currentId = service.registerUser(ip, roomId, socket);
   // 向客户端发送自己的id
-  socketSend_UserId(socket, currentId);
+  socketSend_UserId(socket, currentId, roomId);
   
   console.log(`${currentId}@${ip}${roomId ? '/' + roomId : ''} connected`);
   
@@ -132,8 +160,8 @@ function send(socket, type, data) {
   socket.send(JSON.stringify({ type, data }));
 }
 
-function socketSend_UserId(socket, id) {
-  send(socket, SEND_TYPE_REG, { id });
+function socketSend_UserId(socket, id, roomId) {
+  send(socket, SEND_TYPE_REG, { id, roomId });
 }
 function socketSend_RoomInfo(socket, ip, roomId) {
   const result = service.getUserList(ip, roomId).map(user => ({ 

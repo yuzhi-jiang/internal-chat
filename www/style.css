@@ -100,6 +100,9 @@ pre {
   font-size: 14px;
   user-select: none;
 }
+.chat-item .chat-item_user.system {
+  color: #FFA726;
+}
 .chat-item .chat-item_content {
   display: flex;
   align-items: flex-start;
@@ -369,6 +372,11 @@ pre {
   color: #e0e0e0;
   border-radius: 4px;
   font-size: 14px;
+}
+
+.nickname-input-container input[type="password"] {
+  letter-spacing: 2px;
+  font-family: monospace;
 }
 
 .nickname-input-container input:focus {
