@@ -46,6 +46,8 @@ class XChatUser {
   receivedChunks = [];
   fileInfo = null;
 
+  connectionPromise = null;
+
   #isTransferCancelled = false;
   #transferTimeout = null;
   #expectedFileSize = 0;
@@ -103,35 +105,16 @@ class XChatUser {
     this.rtcConn.oniceconnectionstatechange = () => {
       console.log(`ICE connection state: ${this.rtcConn.iceConnectionState}`);
     };
-
-    this.rtcConn.onconnectionstatechange = () => {
-      console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
-      // 添加更详细的连接状态日志
-      switch(this.rtcConn.connectionState) {
-        case 'new':
-          console.log('Connection created');
-          break;
-        case 'connecting':
-          console.log('Connecting...');
-          break;
-        case 'connected':
-          console.log('Successfully connected');
-          break;
-        case 'disconnected':
-          console.log('Disconnected - attempting to reconnect');
-          break;
-        case 'failed':
-          console.log('Connection failed - checking ICE candidates');
-          console.log('ICE Gathering State:', this.rtcConn.iceGatheringState);
-          console.log('ICE Connection State:', this.rtcConn.iceConnectionState);
-          this.reconnect();
-          break;
-        case 'closed':
-          console.log('Connection closed');
-          break;
-      }
-      this.onConnectionStateChange(this.rtcConn.connectionState);
-    };
+    if (this.rtcConn.connectionState) {
+      this.rtcConn.onconnectionstatechange = () => {
+        this.onConnectionStateChange(this.rtcConn.connectionState);
+      };
+    } else {
+      // firefox没有connectionState，也不支持onConnectionStateChange
+      this.rtcConn.oniceconnectionstatechange = this.rtcConn.onsignalingstatechange = () => {
+        this.onConnectionStateChange(this.getConnectionState());
+      };
+    }
 
     this.rtcConn.onicecandidate = event => {
       if (event.candidate) {
@@ -201,16 +184,51 @@ class XChatUser {
     this.connAddressMe = await this.rtcConn.createAnswer();
     this.rtcConn.setLocalDescription(this.connAddressMe);
 
-    this.rtcConn.onconnectionstatechange = () => {
-      console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
-      this.onConnectionStateChange(this.rtcConn.connectionState);
-      if (this.rtcConn.connectionState === 'failed') {
-        console.log('Connection failed, attempting to reconnect...');
-        this.reconnect();
-      }
-    };
+    if (this.rtcConn.connectionState) {
+      this.rtcConn.onconnectionstatechange = () => {
+        console.log(`Connection state changed: ${this.rtcConn.connectionState}`);
+        this.onConnectionStateChange(this.rtcConn.connectionState);
+        if (this.rtcConn.connectionState === 'failed') {
+          console.log('Connection failed, attempting to reconnect...');
+          this.reconnect();
+        }
+      };
+    } else {
+      // firefox没有connectionState，也不支持onConnectionStateChange
+      this.rtcConn.oniceconnectionstatechange = this.rtcConn.onsignalingstatechange = () => {
+        this.onConnectionStateChange(this.getConnectionState());
+      };
+    }
 
     return this;
+  }
+
+  getConnectionState() {
+    if (!this.rtcConn) {
+      return null;
+    }
+    if (this.rtcConn.connectionstate) {
+      return this.rtcConn.connectionState;
+    } else {
+      let firefoxConnectionState = 'new';
+      // 根据 iceConnectionState 和 signalingState 推断状态
+      if (this.rtcConn.iceConnectionState === 'connected' || this.rtcConn.iceConnectionState === 'completed') {
+        if (this.rtcConn.signalingState === 'stable') {
+          firefoxConnectionState = 'connected';
+        } else {
+          firefoxConnectionState = 'connecting';
+        }
+      } else if (this.rtcConn.iceConnectionState === 'disconnected') {
+        firefoxConnectionState = 'disconnected';
+      } else if (this.rtcConn.iceConnectionState === 'failed') {
+        firefoxConnectionState = 'failed';
+      } else if (this.rtcConn.iceConnectionState === 'closed') {
+        firefoxConnectionState = 'closed';
+      } else if (this.rtcConn.iceConnectionState === 'new') {
+        firefoxConnectionState = 'new';
+      }
+      return firefoxConnectionState;
+    }
   }
 
   addIceCandidate(candidate) {
@@ -570,8 +588,21 @@ class XChatUser {
 
   // 检查是否已连接
   isConnected() {
-    return this.rtcConn && this.rtcConn.connectionState === 'connected';
+    if (!this.rtcConn) {
+      return false;
+    }
+    if (this.rtcConn.connectionState) {
+      return this.rtcConn.connectionState === 'connected';
+    }
+    if (this.rtcConn.iceConnectionState === 'connected' || this.rtcConn.iceConnectionState === 'completed') {
+      if (this.rtcConn.signalingState === 'stable') {
+        return true;
+      }
+    }
+    return false;
   }
+
+
 
   #setTransferTimeout() {
     this.#clearTransferTimeout();
