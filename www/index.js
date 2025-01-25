@@ -1,4 +1,4 @@
-const wsUrl = 'wss://fagedongxi.com/ws';
+const wsUrl = 'wss://fagedognxi.com/ws';
 
 var users = [];
 var me = new XChatUser();
@@ -92,6 +92,9 @@ function connectWebSocket() {
       if (roomId && me.roomId !== roomId) {
         addChatItem('system', '房间密码错误，已切换至内网频道');
         return;
+      }
+      if (data.turns && data.turns.length > 0) {
+        window.fgdx_configuration.iceServers.push(...data.turns)
       }
       // 如果有保存的昵称，发送给服务器
       if (currentNickname) {

@@ -13,15 +13,11 @@ connOption =
   bufferedAmountLowThreshold: 1024 * 16 // 设置缓冲区低阈值为 16KB
 }
 
-const configuration = {
+window.fgdx_configuration = {
   iceServers: [
     {
       urls: [
-        'stun:stun.l.google.com:19302',
-        'stun:stun1.l.google.com:19302',
-        'stun:stun2.l.google.com:19302',
-        'stun:stun3.l.google.com:19302',
-        'stun:stun4.l.google.com:19302'
+        'stun:74.125.250.129:19302'
       ]
     }
   ],
@@ -68,7 +64,7 @@ class XChatUser {
       ]
     };
     
-    this.rtcConn = new RTCPeerConnection(configuration, peerConnectionConstraints);
+    this.rtcConn = new RTCPeerConnection(window.fgdx_configuration, peerConnectionConstraints);
     this.chatChannel = this.rtcConn.createDataChannel('chat',  connOption);
     this.dataChannel_initEvent()
     // this.dataChannel.onopen = () => console.log('DataChannel is open');
@@ -185,7 +181,7 @@ class XChatUser {
       this.closeConnection();
     }
 
-    this.rtcConn = new RTCPeerConnection(configuration);
+    this.rtcConn = new RTCPeerConnection(window.fgdx_configuration);
 
     this.rtcConn.onicecandidate = event => {
       if (event.candidate) {
