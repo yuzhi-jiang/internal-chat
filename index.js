@@ -2,6 +2,9 @@ const WebSocket = require('ws');
 const service = require('./data');
 const path = require('path');
 
+const http = require('http');
+const fs = require('fs');
+
 const originalLog = console.log;
 console.log = function() {
   const date = new Date();
@@ -12,10 +15,39 @@ console.log = function() {
   
   originalLog.apply(console, [`[${timestamp}]`, ...arguments]);
 };
+const HTTP_PORT = process.argv[2] || 8081; // 合并后的统一端口
+const HTTP_DIRECTORY = path.join(__dirname, 'www'); // 静态文件目录
 
-// 接收启动参数作为端口号，默认8081
-const PORT = process.argv[2] || 8081;
-const server = new WebSocket.Server({ port: PORT });
+// 创建 HTTP 服务器
+const server = http.createServer((req, res) => {
+  let urlPath = decodeURIComponent(req.url.split('?')[0]); // 去掉查询参数
+  if (urlPath === '/') {
+    urlPath = '/index.html'; // 默认访问 index.html
+  }
+  let filePath = path.join(HTTP_DIRECTORY, urlPath);
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) {
+      // 如果文件不存在，返回 index.html
+      filePath = path.join(HTTP_DIRECTORY, 'index.html');
+    }
+
+    // 设置缓存头
+    const ext = path.extname(filePath);
+    if (ext === '.js' || ext === '.css') {
+      res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30天缓存
+    }
+
+    fs.createReadStream(filePath).pipe(res);
+  });
+});
+
+server.listen(HTTP_PORT, () => {
+  console.log(`server start on port ${HTTP_PORT}`);
+});
+
+
+const wsServer = new WebSocket.Server({ server });
+
 
 const SEND_TYPE_REG = '1001'; // 注册后发送用户id
 const SEND_TYPE_ROOM_INFO = '1002'; // 发送房间信息
@@ -44,15 +76,13 @@ try {
   });
   console.log(`加载房间数据: ${roomIds.join(',')}`);
 } catch (e) {
-  console.error('Failed to load room_pwd.json');
+  // 没有room_pwd.json文件无需报错，不加载即可
+  // console.error('Failed to load room_pwd.json');
 }
 
-console.log(`Signaling server running on ws://localhost:${PORT}`);
-
-server.on('connection', (socket, request) => {
+wsServer.on('connection', (socket, request) => {
   const ip = request.headers['x-forwarded-for'] ?? request.headers['x-real-ip'] ?? socket._socket.remoteAddress.split("::ffff:").join("");
-
-  const urlWithPath = request.url.split('/')
+  const urlWithPath = request.url.replace(/^\//g, '').split('/')
   let roomId = null;
   let pwd = null;
   if (urlWithPath.length > 1 && urlWithPath[1].length > 0 && urlWithPath[1].length <= 32) {
