@@ -16,6 +16,8 @@ demo演示：https://fagedongxi.com
 ## 部署/启动
 > 自`1.1.0`版本后，不再需要单独部署网页端了，仅启动一个服务端即可
 
+参考视频：https://v.douyin.com/zp_dXkV1fys/
+
 ### 源码方式
 1. 安装nodejs，node版本没有测试，我用的是 `16.20.2`
 2. 下载源码
