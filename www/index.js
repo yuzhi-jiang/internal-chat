@@ -223,10 +223,10 @@ function addChatItem(uid, message) {
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
   let msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const copyText = msg
-  // 判断是否url，兼容端口号的网址,http://127.0.0.1:8080/
-  if (/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g.test(msg)) {
-    msg = msg.replace(/(http|https):\/\/[a-zA-Z0-9\.\-\/\?=\:_]+/g, (url) => {
+  const copyText = msg;
+  // 判断是否url，兼容端口号和带参数的网址
+  if (/(http|https):\/\/[^\s<>"']+/g.test(msg)) {
+    msg = msg.replace(/(http|https):\/\/[^\s<>"']+/g, (url) => {
       return `<a href="${url}" target="_blank">${url}</a>`;
     });
   }
