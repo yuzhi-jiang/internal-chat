@@ -197,10 +197,77 @@ function addLinkItem(uid, file) {
   const user = users.find(u => u.id === uid);
   const displayName = user?.nickname || uid;
   
+  // 检查是否是图片文件
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+  
+  let contentHtml = '';
+  if (isImage) {
+    contentHtml = `
+      <div class="image-preview">
+        <img src="${file.url}" alt="${file.name}" />
+      </div>
+      <button class="copy-btn" onclick="this.parentElement.querySelector('a').click()">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+        </svg>
+      </button>
+      <a href="${file.url}" download="${file.name}" style="display: none;"></a>
+    `;
+  } else {
+    contentHtml = `<a class="file" href="${file.url}" download="${file.name}">[文件] ${file.name}</a>`;
+  }
+  
   chatItem.innerHTML = `
     <div class="chat-item_user">${uid === me.id ? '（我）': ''}${displayName} :</div>
-    <div class="chat-item_content"><a class="file" href="${file.url}" download="${file.name}">[文件] ${file.name}</a></div>
+    <div class="chat-item_content">${contentHtml}</div>
   `;
+  
+  // 如果是图片，添加点击事件
+  if (isImage) {
+    const img = chatItem.querySelector('img');
+    img.onclick = function() {
+      // 创建一个新的图片元素来预览
+      const previewImg = new Image();
+      previewImg.src = this.src;
+      
+      // 等待图片加载完成
+      previewImg.onload = function() {
+        // 创建一个新的窗口
+        const previewWindow = window.open('', '_blank');
+        if (previewWindow) {
+          // 设置预览窗口的内容
+          previewWindow.document.write(`
+            <html>
+              <head>
+                <title>${file.name}</title>
+                <style>
+                  body {
+                    margin: 0;
+                    padding: 20px;
+                    background: #1a1a1a;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                  }
+                  img {
+                    max-width: 100%;
+                    max-height: 90vh;
+                    object-fit: contain;
+                  }
+                </style>
+              </head>
+              <body>
+                <img src="${previewImg.src}" alt="${file.name}" />
+              </body>
+            </html>
+          `);
+          previewWindow.document.close();
+        }
+      };
+    };
+  }
+  
   chatBox.appendChild(chatItem);
   chatBox.scrollTop = chatBox.scrollHeight;
 }

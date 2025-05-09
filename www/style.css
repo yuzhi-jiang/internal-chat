@@ -442,3 +442,23 @@ pre {
     background-color: #363636;
   }
 }
+
+/* 图片预览样式 */
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.image-preview img {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.image-preview img:hover {
+  transform: scale(1.02);
+}
