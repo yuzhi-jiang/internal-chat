@@ -738,4 +738,25 @@ document.addEventListener('DOMContentLoaded', function() {
   if (window.innerWidth <= 768) {
     document.body.classList.remove('show-users');
   }
+
+  // 添加粘贴事件监听
+  document.addEventListener('paste', async (event) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          // 创建一个新的 File 对象，确保有正确的文件名
+          const imageFile = new File([file], `pasted-image-${Date.now()}.png`, {
+            type: 'image/png'
+          });
+          await sendFile(imageFile);
+        }
+        break;
+      }
+    }
+  });
 });
