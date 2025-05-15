@@ -222,7 +222,7 @@ function addLinkItem(uid, file) {
     <div class="chat-item_content">${contentHtml}</div>
   `;
   
-  // 如果是图片，添加点击事件
+  // 如果是图片，添加点击事件和加载完成后的滚动
   if (isImage) {
     const img = chatItem.querySelector('img');
     img.onclick = function() {
@@ -266,10 +266,19 @@ function addLinkItem(uid, file) {
         }
       };
     };
+
+    // 等待图片加载完成后再滚动
+    img.onload = function() {
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
   }
   
   chatBox.appendChild(chatItem);
-  chatBox.scrollTop = chatBox.scrollHeight;
+  
+  // 如果不是图片，立即滚动
+  if (!isImage) {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 }
 
 function addChatItem(uid, message) {
