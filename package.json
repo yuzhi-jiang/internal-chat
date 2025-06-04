@@ -8,10 +8,10 @@
   "bin": "./index.js",
   "scripts": {
     "start": "node index.js",
-    "pkg": "pkg .",
-    "pkg:linux": "pkg . -t node18-linux-x64 -o dist/internal-chat-linux",
-    "pkg:win": "pkg . -t node18-win-x64 -o dist/internal-chat-win.exe",
-    "pkg:mac": "pkg . -t node18-macos-x64,node18-macos-arm64 -o dist/internal-chat-macos"
+    "pkg": "pkg . --options no-warnings --compress GZip",
+    "pkg:linux": "pkg . --options no-warnings --compress GZip -t node18-linux-x64 -o dist/internal-chat-linux",
+    "pkg:win": "pkg . --options no-warnings --compress GZip -t node18-win-x64 -o dist/internal-chat-win.exe",
+    "pkg:mac": "pkg . --options no-warnings --compress GZip -t node18-macos-x64,node18-macos-arm64 -o dist/internal-chat-macos"
   },
   "dependencies": {
     "sqlite3": "^5.1.7",
@@ -23,7 +23,6 @@
   "pkg": {
     "assets": [
       "!room_pwd.json",
-      "./node_modules/**/*",
       "./www/**/*"
     ],
     "ignore": [
@@ -35,6 +34,9 @@
       "node18-macos-x64",
       "node18-macos-arm64"
     ],
-    "outputPath": "dist"
+    "outputPath": "dist",
+    "scripts": ["index.js"],
+    "options": ["--experimental-modules"],
+    "external": ["sqlite3"]
   }
 }

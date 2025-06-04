@@ -35,8 +35,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Package binary
-        run: npm run pkg
+      - name: Install pkg globally
+        run: npm install -g pkg
+
+      - name: Create dist directory
+        run: mkdir -p dist
+
+      - name: Package Windows binary
+        run: npm run pkg:win
+
+      - name: Package Linux binary
+        run: npm run pkg:linux
+
+      - name: Package Mac binary
+        run: npm run pkg:mac
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
