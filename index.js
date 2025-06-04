@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const service = require('./data');
+const messageStore = require('./messageStore');
 const path = require('path');
 
 const http = require('http');
@@ -45,6 +46,33 @@ server.listen(HTTP_PORT, () => {
   console.log(`server start on port ${HTTP_PORT}`);
 });
 
+// Add a route to serve files
+server.on('request', (req, res) => {
+  const urlPath = decodeURIComponent(req.url);
+  
+  if (urlPath.startsWith('/files/')) {
+    const fileId = urlPath.replace('/files/', '');
+    
+    // Get file from database
+    messageStore.getFile(fileId)
+      .then(file => {
+        // Set appropriate content type
+        res.setHeader('Content-Type', file.metadata.filetype || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${file.metadata.filename}"`);
+        res.setHeader('Content-Length', file.data.length);
+        
+        // Return file
+        res.end(file.data);
+      })
+      .catch(err => {
+        console.error('Error sending file:', err);
+        res.statusCode = 404;
+        res.end('File not found');
+      });
+    return;
+  }
+});
+
 
 const wsServer = new WebSocket.Server({ server });
 
@@ -62,6 +90,12 @@ const RECEIVE_TYPE_NEW_CONNECTION = '9002'; // new connection
 const RECEIVE_TYPE_CONNECTED = '9003'; // joined
 const RECEIVE_TYPE_KEEPALIVE = '9999'; // keep-alive
 const RECEIVE_TYPE_UPDATE_NICKNAME = '9004'; // 更新昵称请求
+const RECEIVE_TYPE_MESSAGE = '9005'; // 接收消息
+const RECEIVE_TYPE_FILE = '9006'; // 接收文件
+
+const SEND_TYPE_MESSAGE = '1008'; // 发送消息
+const SEND_TYPE_FILE = '1009'; // 发送文件
+const SEND_TYPE_MESSAGE_HISTORY = '1010'; // 发送消息历史
 
 // 从room_pwd.json中获取房间密码
 let roomPwd = { };
@@ -73,6 +107,9 @@ try {
   roomPwdConfig.forEach(item => {
     roomIds.push(item.roomId);
     roomPwd[item.roomId] = { "pwd": item.pwd, "turns": item.turns };
+    if (item.storeMessages) {
+      roomPwd[item.roomId].storeMessages = true;
+    }
   });
   console.log(`加载房间数据: ${roomIds.join(',')}`);
 } catch (e) {
@@ -98,16 +135,18 @@ wsServer.on('connection', (socket, request) => {
     roomId = null;
   }
   let turns = null;
+  let storeMessages = false;
   if (roomId) {
     if (!pwd || !roomPwd[roomId] || roomPwd[roomId].pwd.toLowerCase() !== pwd.toLowerCase()) {
       roomId = null;
     } else {
       turns = roomPwd[roomId].turns;
+      storeMessages = roomPwd[roomId].storeMessages === true;
     }
   }
   const currentId = service.registerUser(ip, roomId, socket);
   // 向客户端发送自己的id
-  socketSend_UserId(socket, currentId, roomId, turns);
+  socketSend_UserId(socket, currentId, roomId, turns, storeMessages);
   
   console.log(`${currentId}@${ip}${roomId ? '/' + roomId : ''} connected`);
   
@@ -116,6 +155,22 @@ wsServer.on('connection', (socket, request) => {
   });
 
   socketSend_JoinedRoom(socket, currentId);
+  console.log(`Joined room ${roomId}`);
+  console.log(`storeMessages: ${storeMessages}`);
+  console.log(`roomId: ${roomId}`);
+  // Send message history if storage is enabled for this room
+  if (storeMessages && roomId) {
+    console.log(`Sending message history for room ${roomId}`);
+    // Fetch last 50 messages from the database
+    messageStore.getMessages(roomId, 50, 0)
+      .then(messages => {
+        console.log(`Fetched ${messages.length} messages for room ${roomId}`);
+        if (messages && messages.length > 0) {
+          socketSend_MessageHistory(socket, messages);
+        }
+      })
+      .catch(err => console.error('Error loading message history:', err));  
+  }
   
 
   socket.on('message', (msg, isBinary) => {
@@ -167,6 +222,59 @@ wsServer.on('connection', (socket, request) => {
       return;
     }
     
+    // 处理消息类型
+    if (type === RECEIVE_TYPE_MESSAGE && roomId && messageStore.isStorageEnabledForRoom(roomId, roomPwd)) {
+      const messageContent = data.message;
+      console.log(`Received message ${messageContent} from ${uid} in room ${roomId}`);
+      if (messageContent && messageContent.trim() !== '') {
+        // 存储消息到数据库
+        messageStore.storeMessage(roomId, uid, me.nickname, messageContent)
+          .then(messageId => {
+            console.log(`Stored message ${messageId} for room ${roomId}`);
+            // 广播消息给房间内所有用户
+            service.getUserList(ip, roomId).forEach(user => {
+              // socketSend_Message(user.socket, {
+              //   id: messageId,
+              //   userId: uid,
+              //   nickname: me.nickname,
+              //   timestamp: Date.now(),
+              //   content: messageContent
+              // });
+            });
+          })
+          .catch(err => console.error('Error storing message:', err));
+      }
+      return;
+    }
+    
+    // 处理文件类型
+    if (type === RECEIVE_TYPE_FILE && roomId && messageStore.isStorageEnabledForRoom(roomId, roomPwd)) {
+      const { fileContent, fileName, fileType } = data;
+      
+      if (fileContent && fileName) {
+        // 将base64字符串转换为Buffer
+        const fileBuffer = Buffer.from(fileContent, 'base64');
+        
+        // 存储文件
+        messageStore.storeFile(roomId, uid, me.nickname, fileBuffer, fileName, fileType)
+          .then(fileId => {
+            // 广播文件消息给房间内所有用户
+            service.getUserList(ip, roomId).forEach(user => {
+              // socketSend_File(user.socket, {
+              //   fileId: fileId,
+              //   userId: uid,
+              //   nickname: me.nickname,
+              //   timestamp: Date.now(),
+              //   fileName: fileName,
+              //   fileType: fileType
+              // });
+            });
+          })
+          .catch(err => console.error('Error storing file:', err));
+      }
+      return;
+    }
+    
   });
 
   socket.on('close', () => {
@@ -193,8 +301,8 @@ function send(socket, type, data) {
   socket.send(JSON.stringify({ type, data }));
 }
 
-function socketSend_UserId(socket, id, roomId, turns) {
-  send(socket, SEND_TYPE_REG, { id, roomId, turns });
+function socketSend_UserId(socket, id, roomId, turns, storeMessages) {
+  send(socket, SEND_TYPE_REG, { id, roomId, turns, storeMessages });
 }
 function socketSend_RoomInfo(socket, ip, roomId) {
   const result = service.getUserList(ip, roomId).map(user => ({ 
@@ -221,4 +329,16 @@ function socketSend_Connected(socket, data) {
 
 function socketSend_NicknameUpdated(socket, data) {
   send(socket, SEND_TYPE_NICKNAME_UPDATED, data);
+}
+
+function socketSend_Message(socket, data) {
+  send(socket, SEND_TYPE_MESSAGE, data);
+}
+
+function socketSend_File(socket, data) {
+  send(socket, SEND_TYPE_FILE, data);
+}
+
+function socketSend_MessageHistory(socket, messages) {
+  send(socket, SEND_TYPE_MESSAGE_HISTORY, messages);
 }

@@ -90,6 +90,9 @@ function connectWebSocket() {
     if (type === '1001') {
       me.id = data.id;
       me.roomId = data.roomId;
+      // 保存是否启用消息存储
+      me.storeMessages = data.storeMessages;
+      
       if (roomId && me.roomId !== roomId) {
         addChatItem('system', '房间密码错误，已切换至内网频道');
         return;
@@ -133,6 +136,44 @@ function connectWebSocket() {
       if (user) {
         user.nickname = data.nickname;
         refreshUsersHTML();
+      }
+      return;
+    }
+    // 接收消息历史
+    if (type === '1010') {
+      // 显示历史消息
+      if (Array.isArray(data) && data.length > 0) {
+        addChatItem('system', '---- 历史消息 ----');
+        data.forEach(msg => {
+          const sender = msg.userId === me.id ? me.id : msg.userId;
+          if (msg.messageType === 'text') {
+            addChatItem(sender, msg.content, msg.nickname);
+          } else if (msg.messageType === 'file') {
+            // 创建文件链接
+            const fileUrl = `/files/${msg.fileId}`;
+            const fileLink = `<a href="${fileUrl}" target="_blank" download="${msg.filename}">${msg.filename}</a>`;
+            addChatItem(sender, fileLink, msg.nickname);
+          }
+        });
+        addChatItem('system', '---- 最新消息 ----');
+      }
+      return;
+    }
+    // 接收新消息
+    if (type === '1008') {
+      // 如果不是自己发的消息，则显示
+      if (data.userId !== me.id) {
+        addChatItem(data.userId, data.content, data.nickname);
+      }
+      return;
+    }
+    // 接收文件消息
+    if (type === '1009') {
+      // 如果不是自己发的文件，则显示
+      if (data.userId !== me.id) {
+        const fileUrl = `/files/${data.fileId}`;
+        const fileLink = `<a href="${fileUrl}" target="_blank" download="${data.fileName}">${data.fileName}</a>`;
+        addChatItem(data.userId, fileLink, data.nickname);
       }
       return;
     }
@@ -281,23 +322,29 @@ function addLinkItem(uid, file) {
   }
 }
 
-function addChatItem(uid, message) {
-  // 如果是系统控制消息（以##开头），不显示在聊天记录中
-  try {
-    if (typeof message === 'string' && message.startsWith('##')) {
-      return;
-    }
-    const parsed = JSON.parse(message);
-    if (parsed.type && parsed.type.startsWith('##')) {
-      return;
-    }
-  } catch {
-    // 不是JSON消息，继续正常处理
-  }
-
+function addChatItem(uid, message, nickname) {
   const chatBox = document.querySelector('.chat-wrapper');
   const chatItem = document.createElement('div');
   chatItem.className = 'chat-item';
+  
+  const isMe = uid === me.id;
+  
+  // 使用nickname，如果有的话
+  let displayName = uid;
+  if (isMe) {
+    displayName = currentNickname || uid;
+  } else if (uid === 'system') {
+    displayName = '系统消息';
+  } else {
+    // 如果提供了nickname参数（来自历史消息），则使用它
+    if (nickname) {
+      displayName = nickname;
+    } else {
+      const user = users.find(u => u.id === uid);
+      displayName = user?.nickname || uid;
+    }
+  }
+  
   let msg = message.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const copyText = msg;
   // 判断是否url，兼容端口号和带参数的网址
@@ -307,10 +354,6 @@ function addChatItem(uid, message) {
     });
   }
 
-  const user = users.find(u => u.id === uid);
-  const displayName = uid === 'system' ? '系统' : (user?.nickname || uid);
-  const isSystem = uid === 'system';
-
   const copyButton = document.createElement('button')
   copyButton.className = 'copy-btn'
   copyButton.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"></path></svg>'
@@ -319,31 +362,68 @@ function addChatItem(uid, message) {
   }
 
   chatItem.innerHTML = `
-    <div class="chat-item_user ${isSystem ? 'system' : ''}">${!isSystem && uid === me.id ? '（我）': ''}${displayName} :</div>
+    <div class="chat-item_user ${isMe ? 'me' : ''}">${!isMe && uid === me.id ? '（我）': ''}${displayName} :</div>
     <div class="chat-item_content">
       <pre>${msg}</pre>
     </div>
   `;
-  if (!isSystem) {
+  if (!isMe) {
     chatItem.querySelector('.chat-item_content').appendChild(copyButton);
   }
   chatBox.appendChild(chatItem);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
+
 function sendMessage(msg) {
   const message = msg ?? messageInput.value;
   addChatItem(me.id, message);
+  
+  // 直接P2P发送给其他用户
   users.forEach(u => {
     if (u.isMe) {
       return;
     }
     u.sendMessage(message);
   });
+  
+  // 如果启用了消息存储，也发送到服务器
+  if (me.storeMessages && me.roomId) {
+    signalingServer.send(JSON.stringify({
+      uid: me.id,
+      targetId: me.id, // 发送给自己，但服务器会处理
+      type: '9005',    // 消息类型
+      data: { message: message }
+    }));
+    console.log('Sent message to server for storage:', message);
+  }
+  
   messageInput.value = '';
 }
 
 async function sendFile(file) {
   pendingFile = file;
+  
+  // 如果启用了消息存储，也发送到服务器
+  if (me.storeMessages && me.roomId) {
+    // 读取文件内容并转为base64
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64Content = e.target.result.split(',')[1]; // 去掉MIME类型前缀
+      
+      signalingServer.send(JSON.stringify({
+        uid: me.id,
+        targetId: me.id, // 发送给自己，但服务器会处理
+        type: '9006',    // 文件类型
+        data: { 
+          fileContent: base64Content,
+          fileName: file.name,
+          fileType: file.type
+        }
+      }));
+      console.log('Sent file to server for storage:', file.name);
+    };
+    reader.readAsDataURL(file);
+  }
   
   const otherUsers = users.filter(u => !u.isMe);
   
