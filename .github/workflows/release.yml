@@ -37,7 +37,10 @@ jobs:
         run: npm install -g pkg
         
       - name: Package binary
-        run: pkg . --output dist/internal-chat
+        run: |
+          pkg . --target node16-linux-x64 --output dist/internal-chat-linux-x64
+          pkg . --target node16-win-x64 --output dist/internal-chat-win-x64.exe
+          pkg . --target node16-macos-x64 --output dist/internal-chat-macos-x64
         
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
