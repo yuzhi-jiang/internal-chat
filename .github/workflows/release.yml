@@ -12,19 +12,14 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  build-linux:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0    # Fetch all history for generating release notes
-          
+          fetch-depth: 0
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -36,20 +31,106 @@ jobs:
       - name: Install pkg globally
         run: npm install -g pkg
         
-      - name: Package binary
-        run: |
-          pkg . --target node16-linux-x64 --output dist/internal-chat-linux-x64
-          pkg . --target node16-win-x64 --output dist/internal-chat-win-x64.exe
-          pkg . --target node16-macos-x64 --output dist/internal-chat-macos-x64
+      - name: Package Linux binary
+        run: pkg . --target node18-linux-x64 --output dist/internal-chat-linux-x64
         
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-binary
+          path: dist/internal-chat-linux-x64
+          
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Install pkg globally
+        run: npm install -g pkg
+        
+      - name: Package Windows binary
+        run: pkg . --target node18-win-x64 --output dist/internal-chat-win-x64.exe
+        
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-binary
+          path: dist/internal-chat-win-x64.exe
+  
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Install pkg globally
+        run: npm install -g pkg
+        
+      - name: Package macOS binary
+        run: pkg . --target node18-macos-x64 --output dist/internal-chat-macos-x64
+        
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-binary
+          path: dist/internal-chat-macos-x64
+
+  create-release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Create dist directory
+        run: mkdir -p dist
+        
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: linux-binary
+          path: dist
+          
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-binary
+          path: dist
+          
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-binary
+          path: dist
+          
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          # Creates a draft release. Defaults to false
           draft: true
-          # Newline-delimited list of path globs for asset files to upload
           files: |
             dist/internal-chat-linux-x64
             dist/internal-chat-win-x64.exe
             dist/internal-chat-macos-x64
+          token: ${{ secrets.GITHUB_TOKEN }}
